@@ -35,6 +35,13 @@ def plan_layout(w):
     if not w.base:
         return {"hub": None, "guns": [], "walls": []}
     blue, walls = build_ring(w.base, 1), front_walls(w.base)
+    fixed = {
+        (9, 22): ((8, 21), [(9, 20), (8, 20), (8, 22)]),
+        (30, 10): ((32, 10), [(31, 11), (32, 11), (32, 9)]),
+    }
+    if pos(w.base["pos"]) in fixed:
+        hub, guns = fixed[pos(w.base["pos"])]
+        return {"hub": hub, "guns": guns, "walls": sorted(walls)}
     stationary = set(w.zones) | footprint(w.base)
     stationary |= {p for u in w.enemies for p in footprint(u)}
     existing = {pos(u["pos"]) for u in w.weapons}

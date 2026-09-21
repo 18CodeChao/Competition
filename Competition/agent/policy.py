@@ -25,6 +25,7 @@ class Agent(AdaptiveStrategy):
         self.fired = {}
         self.diagnostics = []
         self.failed_mines = {}
+        self.failed_moves = {}
         self.previous_commands = {}
         self.intelligence = Intelligence()
         self.layout = None
@@ -70,19 +71,31 @@ class Agent(AdaptiveStrategy):
 
 
     def solve_task(self, actor, reply):
-        answer = structured_answer(self.w.phase)
-        if answer is None and reply and isinstance(reply.get("answer"), (str, dict, list, int, float)):
+        answer = self.memory.command_answer
+        if reply and isinstance(reply.get("answer"), (str, dict, list, int, float)):
             answer = reply["answer"]
             if not isinstance(answer, str):
                 answer = json.dumps(answer, ensure_ascii=False)
-        if answer is not None and answer != self.memory.submitted:
+        if answer is None:
+            answer = structured_answer(self.w.phase)
+        if answer is not None and answer != self.memory.submitted and answer not in self.memory.rejected:
             if self.emit(actor, command("submitAnswer", taskAnswer=answer)):
                 self.memory.submitted = answer
+                self.memory.submitted_round = self.w.round
                 self.memory.history.append({"submitted": answer})
+                self.events.append({"kind": "taskSubmit", "role": actor["id"], "answer": answer})
                 return
         if reply and isinstance(reply.get("executeCmd"), str) and reply["executeCmd"]:
+            cmd = reply["executeCmd"]
+            self.memory.command_repeats = self.memory.command_repeats + 1 if cmd == self.memory.last_command else 1
+            self.memory.last_command = cmd
+            if self.memory.command_repeats > 2:
+                self.memory.history.append({"localFeedback": "重复命令已运行两次，请利用已有结果或修正方案"})
+                self.response["prompt"] = self.memory.task_prompt(self.w)
+                return
             # Forward only; the participant process NEVER invokes a shell.
             self.response["executeCmd"] = reply["executeCmd"]
+            self.memory.command_answer_pending = reply.get("answerFromCommand") is True
             self.memory.history.append({"executed": reply["executeCmd"]})
         else:
             self.response["prompt"] = self.memory.task_prompt(self.w)

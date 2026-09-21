@@ -58,9 +58,20 @@ def damage(tower: dict, targets: list[tuple], robots: list[dict]) -> dict[int, i
     return dict(result)
 
 
+def defensive_zone(cell, base):
+    return base is None or (cell[1] >= 15 if pos(base["pos"])[0] < 20 else cell[1] <= 15)
+
+
+def defensive_robot(robot, base, side):
+    return defensive_zone(pos(robot["pos"]), base) and robot.get("targetTeam", side) == side
+
+
 def choose_targets(tower, robots, base, side, allocated, deadline=float("inf")):
+    all_robots = robots
+    robots = [r for r in robots if defensive_robot(r, base, side)]
+    forbidden = [r for r in all_robots if not defensive_robot(r, base, side)]
     if tower["roleType"] == "rocket":
-        return rocket_targets(tower, robots, base, side, allocated, deadline)
+        return rocket_targets(tower, robots, base, side, allocated, deadline, forbidden)
     origin = pos(tower["pos"])
     kind = tower["roleType"]
     candidates = {pos(r["pos"]) for r in robots}
@@ -73,7 +84,9 @@ def choose_targets(tower, robots, base, side, allocated, deadline=float("inf")):
     for p in candidates:
         if effects and time.perf_counter() >= deadline:
             break
-        effects[p] = damage(tower, [p], robots)
+        hits = damage(tower, [p], all_robots)
+        if not any(hits.get(r["id"], 0) for r in forbidden):
+            effects[p] = hits
     candidates = list(effects)
     for _ in range(count):
         best, value = None, -1.0
@@ -102,7 +115,7 @@ def choose_targets(tower, robots, base, side, allocated, deadline=float("inf")):
     return chosen
 
 
-def rocket_targets(tower, robots, base, side, allocated, deadline=float("inf")):
+def rocket_targets(tower, robots, base, side, allocated, deadline=float("inf"), forbidden=()):
     """All useful centers for level 1; width-24 beam for multi-missile combinations.
 
     Sparse reverse splash index includes empty landing cells. Uses current positions,
@@ -111,6 +124,7 @@ def rocket_targets(tower, robots, base, side, allocated, deadline=float("inf")):
     origin, radius = pos(tower["pos"]), reach(tower)
     effects = defaultdict(dict)
     remaining, weights, bonuses = {}, {}, {}
+    excluded = {p for r in forbidden for p in [pos(r["pos"])] + neighbours(pos(r["pos"]))}
     for robot in robots:
         rid, cell = robot["id"], pos(robot["pos"])
         remaining[rid] = max(0, robot["health"] - allocated.get(rid, 0))
@@ -120,7 +134,8 @@ def rocket_targets(tower, robots, base, side, allocated, deadline=float("inf")):
         weights[rid] = threat
         bonuses[rid] = 10 * ROBOT_STATS.get(robot["roleType"], (0, 0, 1))[2]
         for center in [cell] + neighbours(cell):
-            if 0 < distance(origin, center) <= radius:
+            if (0 < distance(origin, center) <= radius and center not in excluded
+                    and defensive_zone(center, base)):
                 effects[center][rid] = 20 if center == cell else 10
     if not effects:
         return []

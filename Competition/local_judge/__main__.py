@@ -29,13 +29,14 @@ def demo_policy():
     return lambda payload: {"roleCommandMap": decide(payload), "prompt": "", "executeCmd": ""}
 
 
-def previous_policy():
-    archive = Path(__file__).resolve().parents[1] / "reports" / "baseline-v1.zip"
+def previous_policy(version="v1"):
+    archive = Path(__file__).resolve().parents[1] / "reports" / f"baseline-{version}.zip"
     if not archive.exists():
         raise RuntimeError("reports/baseline-v1.zip snapshot missing")
     if str(archive) not in sys.path:
         sys.path.insert(0, str(archive))
-    from baseline_v1.policy import Agent as PreviousAgent
+    from importlib import import_module
+    PreviousAgent = import_module(f"baseline_{version}.policy").Agent
     return PreviousAgent().decide
 
 
@@ -111,7 +112,7 @@ def run(seed, opponent="demo", swapped=False, pressure=1, limit=1300, replay=Non
         profile="observed", unknown_waves="hold8"):
     game = Game(seed, pressure, profile=profile, unknown_waves=unknown_waves)
     participant = http_policy(url) if url else Agent().decide
-    other = (demo_policy() if opponent == "demo" else previous_policy() if opponent == "previous"
+    other = (demo_policy() if opponent == "demo" else previous_policy("v2") if opponent == "v2" else previous_policy() if opponent == "previous"
              else Agent().decide if opponent == "self" else lambda _: empty_response())
     policies = [other, participant] if swapped else [participant, other]
     participant_side = "defender" if swapped else "challenger"
@@ -154,7 +155,7 @@ def run(seed, opponent="demo", swapped=False, pressure=1, limit=1300, replay=Non
 def main():
     parser = argparse.ArgumentParser(description="Experimental local judge; see docs/IMPLEMENTATION.md")
     parser.add_argument("--seeds", type=int, nargs="+", default=[1])
-    parser.add_argument("--opponent", choices=("demo", "self", "idle", "previous"), default="previous")
+    parser.add_argument("--opponent", choices=("demo", "self", "idle", "previous", "v2"), default="v2")
     parser.add_argument("--profile", choices=("observed", "legacy"), default="observed")
     parser.add_argument("--unknown-waves", choices=("hold8", "growth"), default="hold8",
                         help="day 9/10 are unknown; choose an explicitly hypothetical scenario")
@@ -173,11 +174,12 @@ def main():
         replay = args.replay.open("w", encoding="utf-8")
     report = {"scope": "local experimental evidence, not official validation", "python": platform.python_version(),
               "ruleBaseline": "task book v1.0 2026-09-09 + user decisions 2026-09-21",
-              "assumptions": "docs/IMPLEMENTATION.md A01-A09; docs/EXPERIENCE_V2.md B01-B04",
+              "assumptions": "docs/IMPLEMENTATION.md A01-A09; docs/EXPERIENCE_V2.md B01-B04; docs/PLATFORM_V3.md",
               "hashes": source_hashes(), "games": []}
-    if args.opponent == "previous":
+    if args.opponent in ("previous", "v2"):
+        version = "v1" if args.opponent == "previous" else "v2"
         report["baselineArchiveSHA256"] = hashlib.sha256(
-            (Path(__file__).resolve().parents[1] / "reports/baseline-v1.zip").read_bytes()).hexdigest()
+            (Path(__file__).resolve().parents[1] / f"reports/baseline-{version}.zip").read_bytes()).hexdigest()
     try:
         for seed in args.seeds:
             for swapped in ((False, True) if args.swap else (False,)):

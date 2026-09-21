@@ -7,6 +7,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 import uuid
+import sys
 
 from .rules import WIDTH, HEIGHT, footprint, pos, inside
 
@@ -82,7 +83,8 @@ class MatchJournal:
                      "actionResults": payload.get("lastRoundRoleActionResults", {}), "errors": payload.get("errors", [])}}
         if (round_no - 1) % self.map_every == 0:
             frame["map"] = ascii_map(payload)
-            self.map_logger.info("round=%s team=%s side=%s\n%s", round_no, team["teamId"], team["type"], frame["map"])
+            if self.map_logger is not None:
+                self.map_logger.info("round=%s team=%s side=%s\n%s", round_no, team["teamId"], team["type"], frame["map"])
         self.logger.info(json.dumps(frame, ensure_ascii=False, allow_nan=False))
         self.last[(team["teamId"], team["type"])] = payload
 
@@ -91,3 +93,55 @@ class MatchJournal:
         self.maps.close()
         self.logger.removeHandler(self.handler)
         self.map_logger.removeHandler(self.maps)
+
+
+class StreamJournal(MatchJournal):
+    """Platform-collected stdout. No directories, local files or rotating handlers."""
+    def __init__(self, stream=None, map_every=1, chunk_chars=1800):
+        self.stream = stream if stream is not None else sys.stdout
+        self.map_every, self.chunk_chars = max(1, map_every), max(256, chunk_chars)
+        self.last = {}
+        self.logger, self.map_logger = self, None
+        self.session, self.sequence = uuid.uuid4().hex, 0
+        root = Path(__file__).resolve().parent
+        self.info(json.dumps({"type": "metadata", "schemaVersion": 3, "session": self.session,
+            "transport": "stdout chunks", "sourceHashes": {
+                p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(root.glob("*.py"))}}))
+
+    def info(self, message, *args):
+        text = message % args if args else message
+        self.sequence += 1
+        chunks = [text[i:i + self.chunk_chars] for i in range(0, len(text), self.chunk_chars)]
+        for part, data in enumerate(chunks):
+            envelope = {"session": self.session, "event": self.sequence, "part": part,
+                        "parts": len(chunks), "data": data}
+            self.stream.write("COMPETITION_LOG " + json.dumps(envelope, ensure_ascii=False) + "\n")
+        self.stream.flush()
+
+    def close(self):
+        self.stream.flush()
+
+
+def read_records(stream, stats):
+    """Recover JSONL or platform log chunks, tolerating timestamp prefixes and interleaving."""
+    pending = {}
+    for line in stream:
+        marker = line.find("COMPETITION_LOG ")
+        try:
+            if marker >= 0:
+                packet = json.loads(line[marker + len("COMPETITION_LOG "):])
+                key = packet["session"], packet["event"]
+                parts = pending.setdefault(key, {})
+                parts[packet["part"]] = packet["data"]
+                if len(parts) < packet["parts"]:
+                    continue
+                text = "".join(parts[i] for i in range(packet["parts"]))
+                del pending[key]
+                yield json.loads(text)
+            elif line.lstrip().startswith("{"):
+                yield json.loads(line)
+            else:
+                stats["ignoredLines"] = stats.get("ignoredLines", 0) + 1
+        except (ValueError, KeyError, TypeError):
+            stats["malformedLines"] = stats.get("malformedLines", 0) + 1
+    stats["incompleteEvents"] = len(pending)

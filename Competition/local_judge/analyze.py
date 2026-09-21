@@ -3,7 +3,7 @@ import argparse
 from collections import Counter
 import json
 from pathlib import Path
-from agent.telemetry import ascii_map
+from agent.telemetry import ascii_map, read_records
 
 
 def analyze(path, round_no=None, side=None):
@@ -14,12 +14,7 @@ def analyze(path, round_no=None, side=None):
     last_round = {}
     maps = []
     with Path(path).open(encoding="utf-8") as stream:
-        for line in stream:
-            try:
-                record = json.loads(line)
-            except ValueError:
-                summary["malformedLines"] += 1
-                continue
+        for record in read_records(stream, summary):
             if record.get("type") == "metadata":
                 seen.clear()
                 last_round.clear()

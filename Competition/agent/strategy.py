@@ -6,7 +6,7 @@ import json
 import time
 
 from .audit import Ledger
-from .combat import choose_targets, damage, target_metrics
+from .combat import choose_targets, damage, target_metrics, defensive_robot
 from .intelligence import Intelligence
 from .layout import plan_layout, front_walls
 from .protocol import empty_response, schema_errors
@@ -38,6 +38,10 @@ class AdaptiveStrategy:
             previous = self.previous_commands.get(str(uid), {})
             if not success and previous.get("action") == "collect":
                 self.failed_mines[pos(previous["targetPos"][0])] = w.round + 4
+            if not success and previous.get("action") == "move":
+                self.failed_moves[(int(uid), pos(previous["targetPos"][0]))] = w.round + 2
+        self.failed_moves = {key: expiry for key, expiry in self.failed_moves.items() if expiry >= w.round}
+        w.move_avoid = self.failed_moves
         self.w, self.ledger = w, Ledger(w)
         self.response = empty_response()
         self.reserved, self.jobs, self.purchase_names = set(), set(), set()
@@ -47,8 +51,10 @@ class AdaptiveStrategy:
             self.layout = plan_layout(w)
         hub = self.layout["hub"]
         model_reply = self.memory.update(w)
-        self.wall_builder = self.select_builder()
         self.gunner = self.select_gunner(hub)
+        self.wall_builder = self.select_builder()
+        self.w.gunner_id = self.gunner
+        self.w.protected_hub = hub
         if not w.day:
             self.fight(deadline)
         ordered = sorted(w.actors, key=lambda a: (a["id"] != self.gunner, a["roleType"] != "pioneer", a["id"]))
@@ -56,16 +62,27 @@ class AdaptiveStrategy:
             uid = actor["id"]
             if uid in self.ledger.used:
                 continue
+            if not w.day and uid == self.gunner:
+                # Firing already ran before every non-combat action. Never retreat or leave the hub.
+                if hub and pos(actor["pos"]) != hub:
+                    self.walk_exact(actor, hub, caution=None)
+                else:
+                    self.heal(actor) or self.use_upgrade(actor)
+                continue
+            if actor["roleType"] == "pioneer" and w.phase:
+                # Keep the task alive: no shopping/repair trip and no generic retreat out of range.
+                if not self.heal(actor):
+                    self.solve_task(actor, model_reply)
+                continue
             if not w.day and pos(actor["pos"]) not in w.danger_now and self.use_upgrade(actor):
                 continue
             if self.escape(actor) or self.heal(actor):
                 continue
-            if not w.day and uid == self.gunner:
-                if self.use_upgrade(actor):
+            if w.day and uid == self.gunner and hub:
+                path = w.route(actor, {hub}, self.reserved, caution=None)
+                if w.left <= (len(path) if path is not None else 25) + 8:
+                    self.walk_exact(actor, hub, caution=None)
                     continue
-                if hub and pos(actor["pos"]) != hub:
-                    self.walk_exact(actor, hub)
-                continue
             if self.use_upgrade(actor):
                 continue
             if actor["roleType"] == "worker":
@@ -97,9 +114,12 @@ class AdaptiveStrategy:
             self.response["prompt"] = self.memory.news_prompt(w)
         if schema_errors(self.response):
             raise ValueError("internal response schema failure")
-        self.trace = {"strategy": "experience-v2", "elapsedMs": (time.perf_counter() - started) * 1000,
+        self.trace = {"strategy": "platform-v3", "elapsedMs": (time.perf_counter() - started) * 1000,
                       "layout": deepcopy(self.layout), "gunner": self.gunner, "wallBuilder": self.wall_builder,
-                      "wallStockTarget": self.stone_target(), "events": deepcopy(self.events),
+                      "wallStockTarget": self.stone_target(),
+                      "defensiveRobots": [r["id"] for r in w.robots if defensive_robot(r, w.base, w.side)],
+                      "ignoredRobots": [r["id"] for r in w.robots if not defensive_robot(r, w.base, w.side)],
+                      "taskState": self.memory.diagnostics(w), "events": deepcopy(self.events),
                       "auditRejections": deepcopy(self.diagnostics),
                       "enemyMemory": deepcopy(self.intelligence.enemies),
                       "offenseAssessment": self.intelligence.offense_assessment(w),
@@ -110,34 +130,30 @@ class AdaptiveStrategy:
         return self.response
 
     def select_builder(self):
-        workers = [u for u in self.w.actors if u["roleType"] == "worker"]
+        workers = [u for u in self.w.actors if u["roleType"] == "worker" and u["id"] != self.gunner]
         if not workers:
             return None
         return max(workers, key=lambda a: (a.get("backpack", []).count("stone"), -a["id"]))["id"]
 
     def select_gunner(self, hub):
-        if not self.w.actors:
+        workers = [u for u in self.w.actors if u["roleType"] == "worker"]
+        if not workers:
+            self.gunner_id = None
             return None
-        # Persist through the night to avoid replacing a stationed gunner with a passing worker.
-        if self.gunner_id in self.w.units and (not self.w.day or self.w.left < 25):
+        if any(u["id"] == self.gunner_id for u in workers):
             return self.gunner_id
-        candidates = []
-        for actor in self.w.actors:
-            route = self.w.route(actor, {hub}) if hub else self.home_route(actor)
-            if route is not None:
-                cost = len(route) + (30 if actor["roleType"] == "pioneer" else 0)
-                candidates.append((cost, actor["id"]))
-        self.gunner_id = min(candidates)[1] if candidates else self.w.actors[0]["id"]
+        self.gunner_id = min(workers, key=lambda u: (pos(u["pos"]) != hub,
+            "stone" in u.get("backpack", []), distance(pos(u["pos"]), hub) if hub else 0, u["id"]))["id"]
         return self.gunner_id
 
-    def walk_exact(self, actor, target):
-        path = self.w.route(actor, {target}, self.reserved)
+    def walk_exact(self, actor, target, caution=True):
+        path = self.w.route(actor, {target}, self.reserved, caution=caution)
         if path:
             return self.emit(actor, command("move", [path[0]]))
         return path == []
 
     def escape(self, actor):
-        if self.w.day or pos(actor["pos"]) not in self.w.danger:
+        if actor["id"] == self.gunner or self.w.day or pos(actor["pos"]) not in self.w.danger:
             return False
         p = pos(actor["pos"])
         def risk(cell):
@@ -156,11 +172,11 @@ class AdaptiveStrategy:
     def fight(self, deadline):
         w, allocated = self.w, {}
         gunner = w.units.get(self.gunner)
-        if gunner and pos(gunner["pos"]) not in w.danger_now and self.use_upgrade(gunner):
+        if not gunner:
+            self.events.append({"kind": "noGunner", "reason": "no living worker"})
             return
-        if gunner and self.escape(gunner):
-            return
-        ready = [t for t in w.weapons if t.get("cooldown", 0) == 0]
+        ready = [t for t in w.weapons if t.get("cooldown", 0) == 0
+                 and distance(pos(gunner["pos"]), pos(t["pos"])) <= 1]
         choices = []
         for tower in ready:
             targets = choose_targets(tower, w.robots, w.base, w.side, allocated, deadline)
@@ -177,22 +193,10 @@ class AdaptiveStrategy:
                                         "targets": targets, **metrics})
                     allocated.update(damage(tower, targets, w.robots))
                     break
-        # A second operator is only used when the base is in immediate danger.
-        crisis = w.base and (w.base["health"] < .35 * max_health("station", w.base.get("level", 1)))
-        if crisis:
-            for _, tower, _, _ in choices:
-                if tower["id"] in self.ledger.used:
-                    continue
-                for actor in w.actors:
-                    if actor["id"] in self.ledger.used or distance(pos(actor["pos"]), pos(tower["pos"])) > 1:
-                        continue
-                    targets = choose_targets(tower, w.robots, w.base, w.side, allocated, deadline)
-                    if targets and self.emit(tower, command("attack", targets, controllerId=str(actor["id"]))):
-                        metrics = target_metrics(tower, targets, w.robots, allocated)
-                        self.events.append({"kind": "emergencyVolley", "tower": tower["id"], **metrics})
-                        for rid, value in damage(tower, targets, w.robots).items():
-                            allocated[rid] = allocated.get(rid, 0) + value
-                        break
+        if not any(c["action"] == "attack" for c in self.response["roleCommandMap"].values()):
+            self.events.append({"kind": "gunnerIdle", "role": self.gunner,
+                                "reason": "no reachable ready weapon" if not ready else "no permitted target",
+                                "cooldowns": {t["id"]: t.get("cooldown", 0) for t in w.weapons}})
 
     def missing_walls(self):
         present = {pos(u["pos"]) for u in self.w.ours if u["roleType"] == "wall"}
@@ -301,21 +305,25 @@ class AdaptiveStrategy:
         owned = {item for u in w.actors for item in u.get("backpack", [])} | self.purchase_names
         options = []
         if w.base and w.base.get("level", 1) < 3:
-            options.append(f"StationUpgradeVoucher{w.base.get('level', 1)}")
+            base_item = f"StationUpgradeVoucher{w.base.get('level', 1)}"
+        else:
+            base_item = None
         for gun in sorted(w.weapons, key=lambda u: (u.get("level", 1), u["id"])):
             if gun.get("level", 1) < 3:
                 options.append(f"WeaponUpgradeVoucher{gun.get('level', 1)}")
+        if base_item:
+            options.insert(0 if w.base["health"] < .35 * max_health("station", w.base.get("level", 1)) else len(options), base_item)
         damaged_walls = [u for u in w.ours if u["roleType"] == "wall" and u["health"] < .7 * max_health("wall", u.get("level", 1))]
         if damaged_walls:
             weakest = min(damaged_walls, key=lambda u: u["health"] / max_health("wall", u.get("level", 1)))
-            options.insert(0, f"WallUpgradeVoucher{weakest.get('level', 1)}" if weakest.get("level", 1) < 3 else "WallFixer")
+            options.insert(0 if weakest["health"] < .25 * max_health("wall", weakest.get("level", 1)) else len(options), f"WallUpgradeVoucher{weakest.get('level', 1)}" if weakest.get("level", 1) < 3 else "WallFixer")
         if actor["health"] < 150:
             options.insert(0, "Medicine")
         if len(w.weapons) == 3:
             for item in options:
                 if item in owned or item not in w.shop or w.shop[item] > self.ledger.gold:
                     continue
-                if item.startswith("Wall") and actor["id"] == self.gunner:
+                if actor["id"] == self.gunner:
                     continue
                 route = w.adjacent_route(actor, shops, self.reserved)
                 if route is not None and len(route) + 2 < w.horizon:
