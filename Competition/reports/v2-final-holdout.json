@@ -1,0 +1,380 @@
+{
+  "scope": "local experimental evidence, not official validation",
+  "python": "3.12.14",
+  "ruleBaseline": "task book v1.0 2026-09-09 + user decisions 2026-09-21",
+  "assumptions": "docs/IMPLEMENTATION.md A01-A09; docs/EXPERIENCE_V2.md B01-B04",
+  "hashes": {
+    "main.py": "859e5015b0a037e5a813359f2d7d3d52bba849fbd2fa4c5e5bf6d81c91b92ff1",
+    "run.sh": "798def4d92f2f005c9c4884abfa7caaaccf2860d4667150c7c3ee79ca37678f8",
+    "agent/__init__.py": "8ca8ac62a27f5ff9a613c9c4bba3a569ae0fee7901a47b49190e398e1554cb1f",
+    "agent/audit.py": "257424966906d2a4da2fef6cbc29f9295a35b8989003db8a19661fa542f2184d",
+    "agent/combat.py": "e3b272a3d9c462b59147c2a76ca516edf4f2668d5fbc2ef55f8338113bdffdce",
+    "agent/intelligence.py": "88362a5af1f2e465081fb3e3566367e4506033e389b72bbc4d23fde5adb7d7b7",
+    "agent/layout.py": "0677490f05ed0ac7285bf296c689686fe2124d05b1d2aaeaf5bc8cfd44f271fa",
+    "agent/policy.py": "4c21f3f917a77919ebf15edd400c498ce3e2ce042ae6a8988698ae0b6562da6e",
+    "agent/protocol.py": "bdc74b8f4720f91f59c03b74341482375617d07e861aeaf360dae1fffd02847e",
+    "agent/rules.py": "3b58c69826cdcbe2994628aeb2be4f8dbe97db31894ed87609d85aa500d16115",
+    "agent/server.py": "6e4a963283b88fb483081c5d2e6e720dc164f4bd90660bffd0efe9cd055f1357",
+    "agent/strategy.py": "f8d13bc550914292a76715e51e9e7ca671a0cfa32326e5d8961cfbdf03d848c9",
+    "agent/tasks.py": "a33fa44316caa78771c2812b54b0429e64a8f9b83c7ccd37941e8b3f0f515cb7",
+    "agent/telemetry.py": "05a8322c21e91e675c9f406b473cc4115cf9b7d4a7752f8df6288bbb000e8cf1",
+    "agent/world.py": "946d7e4bb274658ff4b494f5077d2b349ffc797bde59126cc2b74656ff120d81",
+    "local_judge/__init__.py": "87802cf73c8d954e37601b1165ae94615a255d17b74d676686c72a6efa4b95c1",
+    "local_judge/__main__.py": "661498555142ea53df64d807e7f3597831d6dff362e4257841a7fd0dd6c7eed5",
+    "local_judge/analyze.py": "df9990e7593242f9585fa94a50d9bceebc596a16403a80ceea186be9ca4e565b",
+    "local_judge/engine.py": "142996362538369bd41f5411391fe7d284f06b8a92a8045b47a5df433de665cf",
+    "local_judge/profiles.py": "35cc8ed005d3a5e932a6d54cb59ef121f35644a6b7451d5f014d9c54e42fd067",
+    "tests/test_experience.py": "54d88a2cde210ec9abbafa32f2df379fdcd8919fe4b182bf65079122c36017ed",
+    "tests/test_integration.py": "230c574939c17c28b853966374a267d6629e439312595f57f7ef62c6fa8d523f",
+    "tests/test_rules.py": "75aa5e425654dd95e7de5f8bd38c20ca2b654f5b630bbbc28acc25e26c4e4649",
+    "docs/1.jpg": "6df2d5df2d565a2add40fa706d05714317e80a82e7eec042279e193c19fbdfd9",
+    "docs/2.jpg": "1b2e25060539fbe5797300f7773ce9a30c1264cf6e096f40acae33277facdba1",
+    "docs/3.jpg": "5d2f846f9e26bc79fe2f02b60e31e9b5db910b7a959fe088cbdb47ab5b25d1e1",
+    "docs/4.jpg": "9bb4d5e0144896eb6b2da8308c0e187fab0aaddb979d2cf054c779802022d09d",
+    "docs/任务书.md": "c548e2c66b85a71d52c60f23929b5af38caae1fc9908f8f2e5ddd0c457893d3e",
+    "docs/接口文档.md": "931a65d09f881b30644225ca8d6b1bfbc7b2bea7b4f6ce50d1f70cf858cb144d"
+  },
+  "games": [
+    {
+      "seed": 303,
+      "pressure": 1,
+      "rounds": 1300,
+      "profile": "observed",
+      "unknownDay9And10": "hold8",
+      "complete": true,
+      "localWinner": "challenger",
+      "scores": {
+        "challenger": 2515.0,
+        "defender": 1741.0
+      },
+      "scoreBreakdown": {
+        "challenger": {
+          "task": 900.0,
+          "kill": 1065.0,
+          "survival": 550.0
+        },
+        "defender": {
+          "task": 900.0,
+          "kill": 391.0,
+          "survival": 450.0
+        }
+      },
+      "baseHealth": {
+        "challenger": 1300,
+        "defender": 0
+      },
+      "destroyedAt": {
+        "challenger": null,
+        "defender": 1258
+      },
+      "exceptions": {
+        "challenger": 0,
+        "defender": 0
+      },
+      "executionFailures": {
+        "challenger": 38,
+        "defender": 21
+      },
+      "actions": {
+        "challenger": {
+          "build": 25,
+          "move": 1826,
+          "acceptTask": 6,
+          "submitAnswer": 6,
+          "collect": 280,
+          "sell": 18,
+          "buy": 18,
+          "attack": 407,
+          "use": 16
+        },
+        "defender": {
+          "build": 10,
+          "move": 994,
+          "acceptTask": 6,
+          "submitAnswer": 6,
+          "buy": 7,
+          "collect": 106,
+          "use": 7,
+          "sell": 24,
+          "attack": 504
+        }
+      },
+      "participantSide": "challenger",
+      "opponent": "previous",
+      "swapped": false,
+      "transportErrors": [],
+      "latencyMs": {
+        "challenger": {
+          "max": 269.2704999935813,
+          "p95": 58.244300016667694
+        },
+        "defender": {
+          "max": 287.90830000070855,
+          "p95": 84.839400020428
+        }
+      }
+    },
+    {
+      "seed": 303,
+      "pressure": 1,
+      "rounds": 1300,
+      "profile": "observed",
+      "unknownDay9And10": "hold8",
+      "complete": true,
+      "localWinner": "defender",
+      "scores": {
+        "challenger": 1864.5,
+        "defender": 2624.5
+      },
+      "scoreBreakdown": {
+        "challenger": {
+          "task": 900.0,
+          "kill": 414.5,
+          "survival": 550.0
+        },
+        "defender": {
+          "task": 900.0,
+          "kill": 1174.5,
+          "survival": 550.0
+        }
+      },
+      "baseHealth": {
+        "challenger": 3810,
+        "defender": 1500
+      },
+      "destroyedAt": {
+        "challenger": null,
+        "defender": null
+      },
+      "exceptions": {
+        "challenger": 0,
+        "defender": 0
+      },
+      "executionFailures": {
+        "challenger": 15,
+        "defender": 30
+      },
+      "actions": {
+        "challenger": {
+          "move": 1094,
+          "build": 26,
+          "acceptTask": 6,
+          "submitAnswer": 6,
+          "collect": 91,
+          "buy": 6,
+          "use": 6,
+          "attack": 809,
+          "sell": 12
+        },
+        "defender": {
+          "build": 22,
+          "move": 1888,
+          "acceptTask": 6,
+          "submitAnswer": 6,
+          "buy": 18,
+          "collect": 334,
+          "sell": 18,
+          "use": 17,
+          "attack": 377
+        }
+      },
+      "participantSide": "defender",
+      "opponent": "previous",
+      "swapped": true,
+      "transportErrors": [],
+      "latencyMs": {
+        "challenger": {
+          "max": 452.8895999828819,
+          "p95": 57.5607999926433
+        },
+        "defender": {
+          "max": 249.06740000005811,
+          "p95": 83.7634000054095
+        }
+      }
+    },
+    {
+      "seed": 404,
+      "pressure": 1,
+      "rounds": 1300,
+      "profile": "observed",
+      "unknownDay9And10": "hold8",
+      "complete": true,
+      "localWinner": "challenger",
+      "scores": {
+        "challenger": 2492.0,
+        "defender": 2026.0
+      },
+      "scoreBreakdown": {
+        "challenger": {
+          "task": 900.0,
+          "kill": 1042.0,
+          "survival": 550.0
+        },
+        "defender": {
+          "task": 900.0,
+          "kill": 576.0,
+          "survival": 550.0
+        }
+      },
+      "baseHealth": {
+        "challenger": 1500,
+        "defender": 4500
+      },
+      "destroyedAt": {
+        "challenger": null,
+        "defender": null
+      },
+      "exceptions": {
+        "challenger": 0,
+        "defender": 0
+      },
+      "executionFailures": {
+        "challenger": 36,
+        "defender": 20
+      },
+      "actions": {
+        "challenger": {
+          "build": 22,
+          "move": 1657,
+          "collect": 344,
+          "acceptTask": 6,
+          "submitAnswer": 6,
+          "sell": 21,
+          "buy": 16,
+          "use": 15,
+          "attack": 403
+        },
+        "defender": {
+          "build": 27,
+          "move": 1028,
+          "acceptTask": 6,
+          "collect": 94,
+          "submitAnswer": 6,
+          "sell": 13,
+          "buy": 6,
+          "use": 6,
+          "attack": 686
+        }
+      },
+      "participantSide": "challenger",
+      "opponent": "previous",
+      "swapped": false,
+      "transportErrors": [],
+      "latencyMs": {
+        "challenger": {
+          "max": 1229.1135000123177,
+          "p95": 236.69729998800904
+        },
+        "defender": {
+          "max": 1323.2917000132147,
+          "p95": 205.7580999971833
+        }
+      }
+    },
+    {
+      "seed": 404,
+      "pressure": 1,
+      "rounds": 1300,
+      "profile": "observed",
+      "unknownDay9And10": "hold8",
+      "complete": true,
+      "localWinner": "defender",
+      "scores": {
+        "challenger": 1722.0,
+        "defender": 2512.0
+      },
+      "scoreBreakdown": {
+        "challenger": {
+          "task": 900.0,
+          "kill": 372.0,
+          "survival": 450.0
+        },
+        "defender": {
+          "task": 900.0,
+          "kill": 1062.0,
+          "survival": 550.0
+        }
+      },
+      "baseHealth": {
+        "challenger": 0,
+        "defender": 1500
+      },
+      "destroyedAt": {
+        "challenger": 1293,
+        "defender": null
+      },
+      "exceptions": {
+        "challenger": 0,
+        "defender": 0
+      },
+      "executionFailures": {
+        "challenger": 17,
+        "defender": 25
+      },
+      "actions": {
+        "challenger": {
+          "move": 1012,
+          "build": 22,
+          "collect": 116,
+          "acceptTask": 6,
+          "submitAnswer": 6,
+          "sell": 18,
+          "buy": 7,
+          "use": 7,
+          "attack": 794
+        },
+        "defender": {
+          "build": 24,
+          "move": 1832,
+          "acceptTask": 6,
+          "submitAnswer": 6,
+          "collect": 357,
+          "buy": 16,
+          "sell": 15,
+          "use": 14,
+          "attack": 383
+        }
+      },
+      "participantSide": "defender",
+      "opponent": "previous",
+      "swapped": true,
+      "transportErrors": [],
+      "latencyMs": {
+        "challenger": {
+          "max": 1550.549300009152,
+          "p95": 148.5876999795437
+        },
+        "defender": {
+          "max": 848.7373999960255,
+          "p95": 189.1442000051029
+        }
+      }
+    }
+  ],
+  "baselineArchiveSHA256": "b1c490e3ef7265cea57c5f6fa0851c64241f28bd6b785f6a2e7b039458348489",
+  "matches": [
+    {
+      "seed": 303,
+      "localOutcome": "win",
+      "halfWins": 2,
+      "halfLosses": 0,
+      "twoHalfScores": [
+        5139.5,
+        3605.5
+      ],
+      "localMatchPoints": 3
+    },
+    {
+      "seed": 404,
+      "localOutcome": "win",
+      "halfWins": 2,
+      "halfLosses": 0,
+      "twoHalfScores": [
+        5004.0,
+        3748.0
+      ],
+      "localMatchPoints": 3
+    }
+  ]
+}
