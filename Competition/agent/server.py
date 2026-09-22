@@ -31,7 +31,7 @@ def make_server(port: int, host: str = "0.0.0.0", journal=None):
                             journal.record(payload, response, agent.trace, (time.perf_counter() - started) * 1000)
                         except Exception:
                             LOG.exception("journal write failed; preserving decision response")
-                LOG.info("round=%s team=%s actions=%s", payload["roundNo"], key,
+                LOG.debug("round=%s team=%s actions=%s", payload["roundNo"], key,
                          len(response["roleCommandMap"]))
             except Exception:
                 LOG.exception("request/decision failed; returning empty commands")

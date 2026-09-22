@@ -51,6 +51,8 @@ class AdaptiveStrategy:
             self.layout = plan_layout(w)
         hub = self.layout["hub"]
         model_reply = self.memory.update(w)
+        if self.memory.news_updated:
+            self.events.append({'kind': 'treasureInference', 'plan': self.memory.treasure_plan})
         self.gunner = self.select_gunner(hub)
         self.wall_builder = self.select_builder()
         self.w.gunner_id = self.gunner
@@ -71,6 +73,11 @@ class AdaptiveStrategy:
                 continue
             if actor["roleType"] == "pioneer" and w.phase:
                 # Keep the task alive: no shopping/repair trip and no generic retreat out of range.
+                cells = {c for c, kind in w.zones.items() if kind.startswith(w.side)
+                         and distance(c, pos(actor['pos'])) <= 1}
+                task_area = {q for c in cells for q in neighbours(c)} - cells
+                if self.escape(actor, allowed=task_area):
+                    self.events.append({'kind': 'taskSidestep', 'role': uid, 'reason': '仅在任务范围内避让机器人前进格'})
                 if not self.heal(actor):
                     self.solve_task(actor, model_reply)
                 continue
@@ -114,7 +121,7 @@ class AdaptiveStrategy:
             self.response["prompt"] = self.memory.news_prompt(w)
         if schema_errors(self.response):
             raise ValueError("internal response schema failure")
-        self.trace = {"strategy": "platform-v3", "elapsedMs": (time.perf_counter() - started) * 1000,
+        self.trace = {"strategy": "platform-v4", "elapsedMs": (time.perf_counter() - started) * 1000,
                       "layout": deepcopy(self.layout), "gunner": self.gunner, "wallBuilder": self.wall_builder,
                       "wallStockTarget": self.stone_target(),
                       "defensiveRobots": [r["id"] for r in w.robots if defensive_robot(r, w.base, w.side)],
@@ -152,16 +159,14 @@ class AdaptiveStrategy:
             return self.emit(actor, command("move", [path[0]]))
         return path == []
 
-    def escape(self, actor):
-        if actor["id"] == self.gunner or self.w.day or pos(actor["pos"]) not in self.w.danger:
+    def escape(self, actor, allowed=None):
+        if actor["id"] == self.gunner or self.w.day or pos(actor["pos"]) not in self.w.danger_now:
             return False
         p = pos(actor["pos"])
         def risk(cell):
-            return sum(ROBOT_STATS.get(r["roleType"], (0, 0, 0))[1]
-                       * (2 if distance(cell, pos(r["pos"])) <= 3 else 1)
-                       for r in self.w.robots if r.get("abnormalState") != "dizzy"
-                       and distance(cell, pos(r["pos"])) <= 4)
-        options = [q for q in neighbours(p) if q not in self.w.blocked | self.reserved]
+            return self.w.robot_risk.get(cell, 0) + self.w.enemy_fire_risk(cell) / 10
+        options = [q for q in neighbours(p) if q not in self.w.blocked | self.reserved
+                   and q != self.layout["hub"] and (allowed is None or q in allowed)]
         if options:
             best = min(options, key=lambda q: (risk(q), distance(q, self.layout["hub"]) if self.layout["hub"] else 0, q))
             if risk(best) < risk(p):
@@ -394,8 +399,11 @@ class AdaptiveStrategy:
             route = self.w.adjacent_route(actor, cells, self.reserved)
             if route is not None:
                 reward = task.get("scoreReward", 0) + task.get("goldReward", 0)
-                candidates.append((reward / (len(route) + 5), route))
+                candidates.append((reward / (len(route) + 5), route, task))
         if not candidates:
             return False
-        _, route = max(candidates, key=lambda v: v[0])
-        return self.emit(actor, command("move", [route[0]]) if route else command("acceptTask"))
+        _, route, task = max(candidates, key=lambda v: v[0])
+        success = self.emit(actor, command("move", [route[0]]) if route else command("acceptTask"))
+        if success and not route:
+            self.memory.accepted = (self.w.round, dict(task))
+        return success

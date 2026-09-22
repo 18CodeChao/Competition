@@ -1,0 +1,25 @@
+BATTLE {"type":"start","session":"dedd3cb900c0","version":"v4","code":"19c5bb17c2ad"}
+BATTLE {"type":"taskChanged","round":1,"side":"challenger","description":"","task":{"active":false,"startedRound":null,"remainingRounds":null,"rejectedAnswers":0,"verifiedSkills":0,"submittedRound":null}}
+BATTLE {"type":"taskChanged","round":8,"side":"challenger","description":"{\"operation\": \"sum\", \"values\": [12, 23, 67, 68], \"answerKey\": \"answer\"}","task":{"active":true,"startedRound":7,"remainingRounds":19,"rejectedAnswers":0,"verifiedSkills":0,"submittedRound":8}}
+BATTLE {"type":"answerSubmitted","round":8,"side":"challenger","answer":"{\"answer\": 170}"}
+BATTLE {"type":"taskChanged","round":9,"side":"challenger","description":"","task":{"active":false,"startedRound":null,"remainingRounds":null,"rejectedAnswers":0,"verifiedSkills":0,"submittedRound":null}}
+BATTLE {"type":"answerFeedback","round":9,"side":"challenger","answer":"{\"answer\": 170}","verdict":"completed_inferred","reason":"提交后任务结束且无错答反馈；完成为推断","judgeErrors":[]}
+BATTLE {"type":"taskChanged","round":12,"side":"challenger","description":"{\"operation\": \"sum\", \"values\": [62, 41, 75, 38, 31], \"answerKey\": \"answer\"}","task":{"active":true,"startedRound":11,"remainingRounds":19,"rejectedAnswers":0,"verifiedSkills":0,"submittedRound":12}}
+BATTLE {"type":"answerSubmitted","round":12,"side":"challenger","answer":"{\"answer\": 247}"}
+BATTLE {"type":"taskChanged","round":13,"side":"challenger","description":"","task":{"active":false,"startedRound":null,"remainingRounds":null,"rejectedAnswers":0,"verifiedSkills":0,"submittedRound":null}}
+BATTLE {"type":"answerFeedback","round":13,"side":"challenger","answer":"{\"answer\": 247}","verdict":"completed_inferred","reason":"提交后任务结束且无错答反馈；完成为推断","judgeErrors":[]}
+BATTLE {"type":"taskChanged","round":47,"side":"challenger","description":"{\"operation\": \"sum\", \"values\": [55, 5, 32, 6], \"answerKey\": \"answer\"}","task":{"active":true,"startedRound":46,"remainingRounds":19,"rejectedAnswers":0,"verifiedSkills":0,"submittedRound":47}}
+BATTLE {"type":"answerSubmitted","round":47,"side":"challenger","answer":"{\"answer\": 98}"}
+BATTLE {"type":"taskChanged","round":48,"side":"challenger","description":"","task":{"active":false,"startedRound":null,"remainingRounds":null,"rejectedAnswers":0,"verifiedSkills":0,"submittedRound":null}}
+BATTLE {"type":"answerFeedback","round":48,"side":"challenger","answer":"{\"answer\": 98}","verdict":"completed_inferred","reason":"提交后任务结束且无错答反馈；完成为推断","judgeErrors":[]}
+BATTLE {"type":"taskChanged","round":51,"side":"challenger","description":"{\"operation\": \"sum\", \"values\": [32, 10, 49, 53, 13], \"answerKey\": \"answer\"}","task":{"active":true,"startedRound":50,"remainingRounds":19,"rejectedAnswers":0,"verifiedSkills":0,"submittedRound":51}}
+BATTLE {"type":"answerSubmitted","round":51,"side":"challenger","answer":"{\"answer\": 157}"}
+BATTLE {"type":"taskChanged","round":52,"side":"challenger","description":"","task":{"active":false,"startedRound":null,"remainingRounds":null,"rejectedAnswers":0,"verifiedSkills":0,"submittedRound":null}}
+BATTLE {"type":"answerFeedback","round":52,"side":"challenger","answer":"{\"answer\": 157}","verdict":"completed_inferred","reason":"提交后任务结束且无错答反馈；完成为推断","judgeErrors":[]}
+BATTLE {"type":"taskChanged","round":84,"side":"challenger","description":"{\"operation\": \"sum\", \"values\": [13, 72, 43, 34], \"answerKey\": \"answer\"}","task":{"active":true,"startedRound":83,"remainingRounds":19,"rejectedAnswers":0,"verifiedSkills":0,"submittedRound":84}}
+BATTLE {"type":"answerSubmitted","round":84,"side":"challenger","answer":"{\"answer\": 162}"}
+BATTLE {"type":"taskChanged","round":85,"side":"challenger","description":"","task":{"active":false,"startedRound":null,"remainingRounds":null,"rejectedAnswers":0,"verifiedSkills":0,"submittedRound":null}}
+BATTLE {"type":"answerFeedback","round":85,"side":"challenger","answer":"{\"answer\": 162}","verdict":"completed_inferred","reason":"提交后任务结束且无错答反馈；完成为推断","judgeErrors":[]}
+BATTLE {"type":"taskChanged","round":88,"side":"challenger","description":"{\"operation\": \"sum\", \"values\": [85, 14, 5, 43, 38], \"answerKey\": \"answer\"}","task":{"active":true,"startedRound":87,"remainingRounds":19,"rejectedAnswers":0,"verifiedSkills":0,"submittedRound":88}}
+BATTLE {"type":"answerSubmitted","round":88,"side":"challenger","answer":"{\"answer\": 185}"}
+BATTLE {"type":"taskChanged","round":89,"side":"challenger","description":"","task":{"active":false,"startedRound":null,"remainingRounds":null,"rejectedAnswers":0,"verifiedSkills":0,"submittedRound":null}}

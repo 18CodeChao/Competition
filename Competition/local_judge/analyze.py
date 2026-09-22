@@ -15,6 +15,25 @@ def analyze(path, round_no=None, side=None):
     maps = []
     with Path(path).open(encoding="utf-8") as stream:
         for record in read_records(stream, summary):
+            if record.get('type') == 'turn' and 'roles' in record and 'request' not in record:
+                if side and side != record.get('side'):
+                    continue
+                summary['turns'] += 1
+                if summary['maxLatencyMs'] == 0:
+                    summary['maxLatencyMs'] = None
+                summary['actions'].update(u['action']['action'] for u in record['roles'])
+                summary['failedActions'] += len(record.get('failures', []))
+                continue
+            if record.get('type') == 'slowDecision' and (not side or side == record.get('side')):
+                summary['maxLatencyMs'] = max(summary['maxLatencyMs'] or 0, record['ms'])
+                continue
+            if record.get('type') == 'answerFeedback':
+                if not side or side == record.get('side'):
+                    summary.setdefault('answers', []).append({k: record[k] for k in ('round', 'verdict', 'reason', 'answer')})
+                continue
+            if record.get('type') == 'map' and record.get('round') == round_no and (not side or side == record.get('side')):
+                maps.append(record['text'])
+                continue
             if record.get("type") == "metadata":
                 seen.clear()
                 last_round.clear()
@@ -42,7 +61,7 @@ def analyze(path, round_no=None, side=None):
                 summary["actions"].update(c["action"] for c in response.get("roleCommandMap", {}).values())
                 summary["failedActions"] += sum(v is False for v in request.get("lastRoundRoleActionResults", {}).values())
                 summary["errors"].update(str(e["errorCode"]) for e in request.get("errors", []))
-                summary["maxLatencyMs"] = max(summary["maxLatencyMs"], record.get("elapsedMs", trace.get("elapsedMs", 0)))
+                summary["maxLatencyMs"] = max(summary["maxLatencyMs"] or 0, record.get("elapsedMs", trace.get("elapsedMs", 0)))
                 for event in trace.get("events", []):
                     summary["effectiveDamagePlanned"] += event.get("effectiveDamage", 0)
                     summary["overkillPlanned"] += event.get("overkill", 0)

@@ -71,6 +71,12 @@ class Agent(AdaptiveStrategy):
 
 
     def solve_task(self, actor, reply):
+        probe = self.memory.probe_command(self.w)
+        if probe:
+            self.response["executeCmd"] = probe
+            self.memory.history.append({"stage": "readTaskDocument", "command": probe})
+            self.events.append({"kind": "taskProbe", "role": actor["id"]})
+            return
         answer = self.memory.command_answer
         if reply and isinstance(reply.get("answer"), (str, dict, list, int, float)):
             answer = reply["answer"]
@@ -96,13 +102,14 @@ class Agent(AdaptiveStrategy):
             # Forward only; the participant process NEVER invokes a shell.
             self.response["executeCmd"] = reply["executeCmd"]
             self.memory.command_answer_pending = reply.get("answerFromCommand") is True
+            self.memory.command_format = reply.get("answerFormat")
             self.memory.history.append({"executed": reply["executeCmd"]})
         else:
             self.response["prompt"] = self.memory.task_prompt(self.w)
 
     def treasure(self, actor):
         t = self.memory.treasure
-        if not t:
+        if not t or self.memory.treasure_done:
             return False
         try:
             target, items = pos(t["pos"]), t["items"]
@@ -115,9 +122,6 @@ class Agent(AdaptiveStrategy):
             return False
         signature = json.dumps(t, sort_keys=True)
         if signature in self.memory.failed_treasures:
-            return False
-        if self.w.raw.get("lastSummonTreasureResult", 0) in (1, 3, 4):
-            self.memory.failed_treasures.add(signature)
             return False
         bag = Counter(actor.get("backpack", []))
         missing = Counter(items) - bag
@@ -133,7 +137,7 @@ class Agent(AdaptiveStrategy):
             if start <= self.w.round <= end:
                 success = self.emit(actor, command("summonTreasure", [target], item=items))
                 if success:
-                    self.memory.failed_treasures.add(signature)
+                    self.memory.treasure_pending = (self.w.round, signature)
                 return success
             return True
         return self.walk(actor, {target})

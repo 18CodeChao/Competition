@@ -128,6 +128,21 @@ def read_records(stream, stats):
     for line in stream:
         marker = line.find("COMPETITION_LOG ")
         try:
+            if 'BATTLE_PART ' in line:
+                packet = json.loads(line.split('BATTLE_PART ', 1)[1])
+                key = 'brief', packet['event']
+                parts = pending.setdefault(key, {})
+                parts[packet['part']] = packet['data']
+                if len(parts) == packet['parts']:
+                    yield json.loads(''.join(parts[i] for i in range(packet['parts'])))
+                    del pending[key]
+                continue
+            if 'BATTLE ' in line:
+                record = json.loads(line.split('BATTLE ', 1)[1])
+                if record.get('type') == 'start':
+                    pending = {k: v for k, v in pending.items() if k[0] != 'brief'}
+                yield record
+                continue
             if marker >= 0:
                 packet = json.loads(line[marker + len("COMPETITION_LOG "):])
                 key = packet["session"], packet["event"]

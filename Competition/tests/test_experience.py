@@ -90,16 +90,18 @@ class ExperienceTests(unittest.TestCase):
         answer = Agent().decide(g.observation("challenger"))
         self.assertEqual(answer["roleCommandMap"]["10011"]["action"], "submitAnswer")
 
-    def test_night_path_avoids_robot_attack_and_next_move_zone(self):
+    def test_night_path_uses_directional_risk_without_radius_exclusion(self):
         g = Game(pressure=0)
         g.round = 71
         g.unit(10012)["pos"] = xy((2, 2))
         g.robots[30001] = robot(30001, (6, 6))
         w = World(g.observation("challenger"))
-        self.assertIsNone(w.route(w.units[10012], {(6, 7)}))
+        # v4: risk is a soft cost; an otherwise reachable goal is not banned by radius.
+        self.assertIsNotNone(w.route(w.units[10012], {(6, 7)}))
         path = w.route(w.units[10012], {(12, 2)})
         self.assertIsNotNone(path)
-        self.assertTrue(all(distance(p, (6, 6)) > 4 for p in path))
+        self.assertNotIn((6, 6), path)
+        self.assertIsNotNone(w.route(w.units[10012], {(6, 4)}))  # Close, but behind its travel direction.
 
     def test_stone_batch_keeps_mining_instead_of_far_return(self):
         g, _ = self.clustered_game()

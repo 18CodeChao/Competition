@@ -112,7 +112,7 @@ def run(seed, opponent="demo", swapped=False, pressure=1, limit=1300, replay=Non
         profile="observed", unknown_waves="hold8"):
     game = Game(seed, pressure, profile=profile, unknown_waves=unknown_waves)
     participant = http_policy(url) if url else Agent().decide
-    other = (demo_policy() if opponent == "demo" else previous_policy("v2") if opponent == "v2" else previous_policy() if opponent == "previous"
+    other = (demo_policy() if opponent == "demo" else previous_policy(opponent) if opponent in ("v2", "v3") else previous_policy() if opponent == "previous"
              else Agent().decide if opponent == "self" else lambda _: empty_response())
     policies = [other, participant] if swapped else [participant, other]
     participant_side = "defender" if swapped else "challenger"
@@ -155,7 +155,7 @@ def run(seed, opponent="demo", swapped=False, pressure=1, limit=1300, replay=Non
 def main():
     parser = argparse.ArgumentParser(description="Experimental local judge; see docs/IMPLEMENTATION.md")
     parser.add_argument("--seeds", type=int, nargs="+", default=[1])
-    parser.add_argument("--opponent", choices=("demo", "self", "idle", "previous", "v2"), default="v2")
+    parser.add_argument("--opponent", choices=("demo", "self", "idle", "previous", "v2", "v3"), default="v3")
     parser.add_argument("--profile", choices=("observed", "legacy"), default="observed")
     parser.add_argument("--unknown-waves", choices=("hold8", "growth"), default="hold8",
                         help="day 9/10 are unknown; choose an explicitly hypothetical scenario")
@@ -174,10 +174,10 @@ def main():
         replay = args.replay.open("w", encoding="utf-8")
     report = {"scope": "local experimental evidence, not official validation", "python": platform.python_version(),
               "ruleBaseline": "task book v1.0 2026-09-09 + user decisions 2026-09-21",
-              "assumptions": "docs/IMPLEMENTATION.md A01-A09; docs/EXPERIENCE_V2.md B01-B04; docs/PLATFORM_V3.md",
+              "assumptions": "docs/IMPLEMENTATION.md A01-A09; docs/EXPERIENCE_V2.md B01-B04; docs/LOG_TASK_V4.md (observed robot AI updated)",
               "hashes": source_hashes(), "games": []}
-    if args.opponent in ("previous", "v2"):
-        version = "v1" if args.opponent == "previous" else "v2"
+    if args.opponent in ("previous", "v2", "v3"):
+        version = "v1" if args.opponent == "previous" else args.opponent
         report["baselineArchiveSHA256"] = hashlib.sha256(
             (Path(__file__).resolve().parents[1] / f"reports/baseline-{version}.zip").read_bytes()).hexdigest()
     try:

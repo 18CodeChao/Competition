@@ -1,7 +1,7 @@
 """Observation only: never imports local_judge or simulator-private state."""
 from collections import deque
 import heapq
-from .rules import reach, distance
+from .rules import reach, distance, ROBOT_STATS
 from .rules import ACTORS, WEAPONS, footprint, pos, daylight, neighbours, inside
 
 
@@ -35,20 +35,41 @@ class World:
         self.horizon = self.left if self.day else 130 - (self.round - 1) % 130
         self.danger = set()
         self.danger_now = set()
+        self.robot_risk = {}
+        bases = {self.side: self.base}
+        other = "defender" if self.side == "challenger" else "challenger"
+        bases[other] = next((u for u in self.enemies if u["roleType"] == "station"), None)
         if not self.day:
             for robot in self.robots:
                 if robot.get("abnormalState") == "dizzy":
                     continue
-                x, y = pos(robot["pos"])
-                self.danger.update((a, b) for a in range(x - 4, x + 5)
-                                   for b in range(y - 4, y + 5) if inside((a, b)))
-                self.danger_now.update((a, b) for a in range(x - 3, x + 4)
-                                       for b in range(y - 3, y + 4) if inside((a, b)))
+                base = bases.get(robot.get("targetTeam", self.side))
+                if base is None:
+                    continue  # No known destination: do not invent an omnidirectional attack zone.
+                goal = footprint(base)
+                remaining = lambda p: min(distance(p, q) for q in goal)
+                frontier = {pos(robot["pos"])}
+                seen = set(frontier)
+                power = ROBOT_STATS.get(robot["roleType"], (0, 5, 0))[1]
+                buildings = {c for u in self.ours + self.enemies
+                             if u["roleType"] not in ACTORS for c in footprint(u)}
+                for step, factor in ((1, 3.0), (2, 1.0), (3, .4)):
+                    following = {q for p in frontier for q in neighbours(p)
+                                 if remaining(q) < remaining(p) and q not in seen}
+                    for q in following:
+                        self.robot_risk[q] = self.robot_risk.get(q, 0) + power * factor
+                    if step == 1:
+                        self.danger_now.update(following)
+                    seen.update(following)
+                    # Stop prediction at a blocking structure; do not see through a wall.
+                    frontier = following - buildings - set(self.zones)
+                    if not frontier:
+                        break
+            self.danger = set(self.robot_risk)
 
     def route(self, actor: dict, targets: set[tuple], reserved=frozenset(), caution=True) -> list[tuple] | None:
         start = pos(actor["pos"])
-        hazard = set() if caution is None else self.danger if caution else self.danger_now
-        blocked = (self.blocked | hazard | set(reserved)) - {start}
+        blocked = (self.blocked | set(reserved)) - {start}
         blocked |= {cell for (uid, cell), expiry in getattr(self, "move_avoid", {}).items()
                     if uid == actor["id"] and expiry >= self.round and cell != start}
         hub = getattr(self, "protected_hub", None)
@@ -57,7 +78,7 @@ class World:
         goals = targets - blocked
         if not goals:
             return None
-        if not self.day and self.enemy_weapons and caution is not None:
+        if not self.day and (self.enemy_weapons or self.robot_risk) and caution is not None:
             # Soft danger cost: global enemy rocket reach must not block the entire map.
             frontier, costs, parent = [(0, start)], {start: 0}, {start: None}
             while frontier:
@@ -73,7 +94,7 @@ class World:
                 for nxt in neighbours(cell):
                     if nxt in blocked:
                         continue
-                    candidate = cost + 1 + self.enemy_fire_risk(nxt) / 100
+                    candidate = cost + 1 + self.enemy_fire_risk(nxt) / 100 + self.robot_risk.get(nxt, 0) / 5
                     if candidate < costs.get(nxt, float("inf")):
                         costs[nxt], parent[nxt] = candidate, cell
                         heapq.heappush(frontier, (candidate, nxt))

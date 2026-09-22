@@ -1,6 +1,8 @@
 """Cross-round official prompt/executeCmd pipeline; never executes on the host."""
 import json
 import re
+from pathlib import PurePosixPath
+from .task_tools import document_probe, sandbox_body, checker_answer
 
 
 def json_object(text):
@@ -74,17 +76,50 @@ class TaskMemory:
         self.command_answer = None
         self.last_command = None
         self.command_repeats = 0
+        self.probe_sent = False
+        self.task_documents = None
+        self.task_roots = []
+        self.accepted = None
+        self.command_format = None
+        self.news_dirty = False
+        self.news_signature = None
+        self.treasure_plan = None
+        self.treasure_pending = None
+        self.treasure_feedback = None
+        self.treasure_done = False
+        self.news_updated = False
+        self.last_treasure_feedback = None
 
     def update(self, w):
+        self.news_updated = False
         day = (w.round - 1) // 130 + 1
         if self.llm_day != day:
             self.llm_day, self.llm_count = day, 0
         news = w.raw.get("worldNews", {})
         if any(news.values()) and (not self.news or self.news[-1]["content"] != news):
+            previous_folk = self.news[-1]["content"].get("folkLegends") if self.news else None
             self.news.append({"round": w.round, "content": dict(news)})
+            self.news_dirty = True
+            self.news_signature = json.dumps(news, sort_keys=True, ensure_ascii=False)
+            if news.get("folkLegends") != previous_folk:
+                self.treasure = None  # New evidence must be reconciled before spending sacrifices.
+        self.treasure_feedback = None
+        if self.treasure_pending and self.treasure_pending[0] == w.round - 1:
+            code = w.raw.get("lastSummonTreasureResult", 0)
+            signature = self.treasure_pending[1]
+            self.treasure_feedback = {"code": code, "attemptRound": self.treasure_pending[0]}
+            self.last_treasure_feedback = self.treasure_feedback
+            if code in (1, 4):
+                self.treasure_done = True
+            if code in (2, 3):
+                self.failed_treasures.add(signature)
+                self.treasure = None
+                self.news_dirty = True
+            self.treasure_pending = None
         self.command_answer = None
         if self.command_answer_pending and w.phase == self.phase:
-            self.command_answer = verified_command_answer(w.raw.get("lastCmdResult", ""))
+            raw = w.raw.get("lastCmdResult", "")
+            self.command_answer = checker_answer(raw) if self.command_format == "checkerToken" else verified_command_answer(raw)
         self.command_answer_pending = False
         errors = {e.get("errorCode") for e in w.raw.get("errors", [])}
         if self.submitted_round == w.round - 1 and 2 in errors:
@@ -101,9 +136,24 @@ class TaskMemory:
             self.rejected, self.candidate_skills = set(), []
             self.submitted_round = None
             self.task_start = w.round - 1 if w.phase else None
+            self.probe_sent, self.task_documents = False, None
             self.command_repeats, self.last_command = 0, None
             nearby = [t for t in w.tasks if pioneer and max(abs(pioneer["pos"][k] - t["taskPosition"][k]) for k in ("x", "y")) <= 2]
             self.task_timeout = min((t.get("timeoutRounds", 100) for t in nearby), default=100)
+            if w.phase and self.accepted and self.accepted[0] == w.round - 1:
+                self.task_start, self.task_timeout = self.accepted[0], self.accepted[1].get("timeoutRounds", 100)
+            self.accepted = None
+        body = sandbox_body(w.raw.get("lastCmdResult", ""))
+        if self.probe_sent and w.phase and body:
+            try:
+                probe = json.loads(body).get("taskProbe")
+                if isinstance(probe, dict):
+                    self.task_documents = probe
+                    if probe.get("status") == "ok":
+                        directory = str(PurePosixPath(probe["document"]["path"]).parent)
+                        self.task_roots = list(dict.fromkeys(self.task_roots + [directory]))[-8:]
+            except (ValueError, AttributeError, KeyError, TypeError):
+                pass
         reply = json_object(w.raw.get("llmResp", ""))
         pending = self.pending
         self.pending = None
@@ -115,8 +165,17 @@ class TaskMemory:
                 self.history.append({"model": reply})
                 return reply
             if pending[0] == "news":
+                if pending[1] != self.news_signature:
+                    return None
+                self.news_dirty = False
                 treasure = reply.get("treasure")
-                if isinstance(treasure, dict) and treasure.get("certain") is True:
+                self.treasure_plan = reply
+                self.news_updated = True
+                self.treasure = None
+                if (isinstance(treasure, dict) and treasure.get("certain") is True
+                        and isinstance(treasure.get("evidence"), dict)
+                        and all(treasure["evidence"].get(k) for k in ("position", "items", "time"))
+                        and not reply.get("conflicts") and not reply.get("missing")):
                     self.treasure = treasure
                 closures = reply.get("closures", [])
                 if isinstance(closures, list):
@@ -140,8 +199,21 @@ class TaskMemory:
                 "若命令可直接计算并自检最终答案，请同时返回answerFromCommand:true，"
                 "命令stdout仅输出JSON {\"competitionAnswer\":最终答案}，成功退出后程序会直接提交，省去一次LLM往返。"
                 "否则仅执行命令后等待结果再判断。不要猜测缺失数据，不要编造工具结果或访问外网。\n" +
+                "若taskDocument已给出原文和API文档，不要再全盘搜索。每条命令必须独立cd到本题目录，shell工作目录不跨轮保持。"
+                "API题只调用文档给出的本机服务，核查分页是否读全、过滤条件、字段语义与答案格式；不要根据字段名字猜输出。"
+                "部署修复题先在题目指定工作目录运行check，按实际失败项修复目录权限和配置，再运行check验证；"
+                "禁止篡改检查器或从其源码提取答案。若题目要求成功检查器输出的token，"
+                "可返回answerFromCommand:true,answerFormat:checkerToken，保留最终[ OK ]全部通过与TOKEN行。"
+                "不要混用上题工作区、接口参数或token。剩余回合紧张时避免无关探测，合并读取、修复和验证。\n" +
                 json.dumps({"task": w.phase, "budget": self.diagnostics(w), "history": self.history,
+                            "taskDocument": self.task_documents,
                             "rejectedAnswers": sorted(self.rejected), "verifiedSkills": self.skills}, ensure_ascii=False))
+
+    def probe_command(self, w):
+        if self.probe_sent:
+            return None
+        self.probe_sent = True
+        return document_probe(w.phase, self.task_roots)
 
     def diagnostics(self, w):
         return {"active": bool(w.phase), "startedRound": self.task_start,
@@ -152,15 +224,21 @@ class TaskMemory:
 
     def news_prompt(self, w):
         day = (w.round - 1) // 130 + 1
-        if self.news_day == day or self.llm_count >= 3 or not self.news:
+        if not self.news_dirty or self.llm_count >= 3 or not self.news:
             return ""
         self.news_day = day
         self.llm_count += 1
-        self.pending = ("news", "")
+        self.pending = ("news", self.news_signature)
         return ("根据全部新闻提取约束，只返回JSON。未知内容不要猜。treasure为空或为"
-                "{certain:true,pos:{x:整数,y:整数},items:[物品英文名],startRound:整数,endRound:整数}；"
+                "{certain:true,pos:{x:整数,y:整数},items:[物品英文名],startRound:整数,endRound:整数,"
+                "evidence:{position:坐标原文依据,items:完整物品集原文依据,time:时间原文依据}}；"
+                "维护clues数组及missing、conflicts数组。未给出坐标/时间时保留线索并列为missing，禁止把年龄、水位等干扰数字当坐标。"
+                "物品必须不多不少。古符石板=AcientTablet、星辰之沙=StarSand、烈焰之息=FlameBreath、"
+                "寒霜药剂=FrostPotion、荆棘护符=ThornAmulet、回音铁哨=IronWhistle，最终以当场shop为准。"
+                "新传闻须与之前逐条核对，否定线索覆盖猜测；不是多轮自进化任务，不需要executeCmd。"
                 "closures为[{name:stone/iron/copper,startDay:整数,endDay:整数}]。"
                 "priceForecasts为[{name:stone/iron/copper,startDay:整数,endDay:整数,"
                 "direction:up,confidence:0到1,evidence:新闻原文依据}]；只根据明确新闻给出上涨预期。"
                 "一天130回合，从1开始。仅确定且无冲突时certain=true。\n" +
-                json.dumps({"news": self.news, "shop": w.shop}, ensure_ascii=False))
+                json.dumps({"news": self.news, "previousInference": self.treasure_plan,
+                            "lastAttempt": self.last_treasure_feedback, "shop": w.shop}, ensure_ascii=False))

@@ -1,9 +1,10 @@
-# 未来战争：参赛程序与本地判题器（平台反馈修复版 v3）
+# 未来战争：参赛程序与本地判题器（任务与日志修复版 v4）
 
 目标 Python **3.11.10**，仅依赖标准库。官方 docs 和 Demo 保留原样。
-可直接使用本轮生成的 [dist/submission-v3.zip](dist/submission-v3.zip)，解压后根目录包含 `run.sh`。
+可直接使用本轮生成的 [dist/submission-v4.zip](dist/submission-v4.zip)，解压后根目录包含 `run.sh`。
 本版使用指定后方三炮位、固定工人守炮、严格区分两方机器人，以及平台标准输出日志。
-本版策略与验证边界见 [docs/PLATFORM_V3.md](docs/PLATFORM_V3.md)；
+本轮日志分析、改动与边界见 [docs/LOG_TASK_V4.md](docs/LOG_TASK_V4.md)；
+此前平台修复见 [docs/PLATFORM_V3.md](docs/PLATFORM_V3.md)；
 历史 v2 策略与模拟假设见 [docs/EXPERIENCE_V2.md](docs/EXPERIENCE_V2.md)；
 基础接口、图片解读及未覆盖规则见 [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md)。
 
@@ -36,7 +37,8 @@ python -m local_judge --seeds 1 --opponent v2 --unknown-waves growth --swap --re
 `--swap`为同种子左右各运行一次；每场最多1300轮，报告同时保存半场与双半场本地结果。
 默认 `--profile observed` 使用用户反馈的基地和前八夜波次；第九、十夜未知，
 `--unknown-waves hold8`（默认）沿用第八夜，`growth` 是人为递增压力情景，均非官方数据。
-`--opponent v2`（默认）加载 `reports/baseline-v2.zip`；`previous` 加载 v1，双方使用同一环境。
+`--opponent v3`（默认）加载 `reports/baseline-v3.zip`；`v2`和`previous`保留旧对手，双方使用同一环境。
+observed环境按用户最新反馈改为机器人以基地为目标，仅攻击挡路单位；具体路径选择仍是本地假设。
 1040轮只覆盖已知的前8天，不是完整比赛，不计算最终胜负。
 `--profile legacy` 保留第一版假设环境。`--pressure`也是本地压力参数。
 题库、LLM/沙盒服务替身、机器人AI均有覆盖限制，本地胜负不是官方胜率。
@@ -60,22 +62,25 @@ python -m unittest discover -s tests -v
 ```
 
 测试包含独立预期的规则案例、HTTP往返、官方请求样例、错误输入，以及注入LLM/命令结果的跨轮任务闭环。
-真实Python运行版本和本版实测结果见 [reports/VALIDATION_V3.md](reports/VALIDATION_V3.md)。
+真实Python运行版本和本版实测结果见 [reports/VALIDATION_V4.md](reports/VALIDATION_V4.md)。
 第一版及开发中间报告保留作历史证据，不代表最终源码验证。
 
 ## 对局日志与地图
 
-正式程序不创建本地日志文件，完整请求、响应、动作反馈、布局、选敌/忽略列表、任务状态、
-升级/撤退事件、敌情、价格和每轮41×32地图全部输出到 stdout，由平台统一采集。
-长记录分段编号，每行以 `COMPETITION_LOG ` 开始，及时 flush。`--map-every 5` 可降低地图频率。
-框架异常输出到 stderr。移除了 `--log-dir` 参数；不要把旧启动参数带入 v3。
+正式程序只输出stdout，由平台采集。默认每轮一条简明状态：金币、分数、基地血量、角色位置/血量/背包、
+动作与上一轮反馈。任务原文、答案、判题反馈、新闻、沙盒结果等按事件输出。
+session和代码版本只在启动记录一次；不再重复完整请求、哈希、敌情历史或整张地图。
+普通记录以 `BATTLE ` 开始；个别长事件以 `BATTLE_PART ` 分段，不重复session。
+地图默认关闭，`--map-every 130` 可启用。框架异常输出到 stderr，不使用 `--log-dir`。
 
 ```powershell
 python -m local_judge.analyze 平台下载日志.txt --round 71 --side challenger --output reports/log-analysis.txt
 ```
 
-分析器支持平台时间戳前缀、分段重组和旧JSONL，统计缺段及损坏记录。请保留平台原始文本日志，
-不要只截屏。预测伤害不等于已确认击杀；任务答案和工具结果也记录在日志中。
+分析器支持新简明日志、平台时间戳前缀、分段重组、旧JSONL，统计缺段及损坏记录。
+完整错误说明原样记录；判题器未提供错项时明确写未知，不将动作合法判为答案正确。
+简明日志不包含所有原始观测，无法完整重放旧版全部决策；优先满足人工复盘。
+样例见 [reports/v4-log-example.txt](reports/v4-log-example.txt)。
 
 ## 文件职责
 

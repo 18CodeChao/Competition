@@ -366,6 +366,21 @@ class Game:
             if base["health"] <= 0:
                 continue
             p = pos(robot["pos"])
+            if self.profile == 'observed':
+                # User feedback 2026-09-23: advance to base, hit obstructing units only.
+                # Tie-break and base firing priority remain explicit local assumptions.
+                if unit_distance(p, base) <= 3:
+                    attacks.append((base['id'], ROBOT_STATS[robot['roleType']][1]))
+                    continue
+                options = [q for q in neighbours(p) if q not in self.zones and unit_distance(q, base) < unit_distance(p, base)]
+                if options:
+                    target = min(options, key=lambda q: (unit_distance(q, base), q))
+                    blocker = next((u for s in SIDES for u in self.living(s) if target in footprint(u)), None)
+                    if blocker:
+                        attacks.append((blocker['id'], ROBOT_STATS[robot['roleType']][1]))
+                    else:
+                        intents[rid] = target
+                continue
             # A03: prefer nearby defending units, then greedy motion toward the base.
             victims = [u for u in self.living(side) if unit_distance(p, u) <= 3]
             if victims:
