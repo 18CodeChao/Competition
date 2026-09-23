@@ -9,7 +9,7 @@ from .rules import ACTORS, pos
 from .telemetry import ascii_map
 
 
-class ReadableJournal:
+class EventJournal:
     def __init__(self, stream=None, map_every=0):
         self.stream = stream if stream is not None else sys.stdout
         self.map_every = max(0, map_every)
@@ -19,7 +19,7 @@ class ReadableJournal:
         for p in sorted(Path(__file__).parent.glob('*.py')):
             digest.update(p.name.encode())
             digest.update(p.read_bytes())
-        self.emit({'type': 'start', 'session': uuid.uuid4().hex[:12], 'version': 'v4', 'code': digest.hexdigest()[:12]})
+        self.emit({'type': 'start', 'session': uuid.uuid4().hex[:12], 'version': 'v5', 'code': digest.hexdigest()[:12]})
 
     def emit(self, record):
         text = json.dumps(record, ensure_ascii=False, separators=(',', ':'), allow_nan=False)
@@ -116,4 +116,36 @@ class ReadableJournal:
         self.last[key] = {'request': payload, 'response': response}
 
     def close(self):
+        self.stream.flush()
+
+
+class ReadableJournal(EventJournal):
+    """Chinese request/response blocks by default; JSON remains an explicit local option."""
+    def __init__(self, stream=None, map_every=0, output_format='human'):
+        self.output_format = output_format
+        self.events = []
+        super().__init__(stream, map_every)
+
+    def emit(self, record):
+        if self.output_format == 'json':
+            return super().emit(record)
+        if record['type'] == 'start':
+            self.stream.write(f"对局启动 session={record['session']} version={record['version']} code={record['code']}\n")
+            self.stream.flush()
+        else:
+            self.events.append(record)
+
+    def record(self, payload, response, trace, elapsed_ms):
+        if self.output_format == 'json':
+            return super().record(payload, response, trace, elapsed_ms)
+        from .human_log import render_round
+        key = payload['teamOur']['teamId'], payload['teamOur']['type']
+        previous = self.last.get(key)
+        if previous and previous['request']['roundNo'] != payload['roundNo'] - 1:
+            previous = None
+        self.events = []
+        super().record(payload, response, trace, elapsed_ms)
+        if not self.events:  # Identical retry: no second copy of the same round.
+            return
+        self.stream.write(render_round(payload, response, previous, self.events, trace))
         self.stream.flush()

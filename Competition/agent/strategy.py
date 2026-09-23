@@ -73,13 +73,12 @@ class AdaptiveStrategy:
                 continue
             if actor["roleType"] == "pioneer" and w.phase:
                 # Keep the task alive: no shopping/repair trip and no generic retreat out of range.
-                cells = {c for c, kind in w.zones.items() if kind.startswith(w.side)
-                         and distance(c, pos(actor['pos'])) <= 1}
-                task_area = {q for c in cells for q in neighbours(c)} - cells
+                task_area = self.memory.task_area(w)
                 if self.escape(actor, allowed=task_area):
                     self.events.append({'kind': 'taskSidestep', 'role': uid, 'reason': '仅在任务范围内避让机器人前进格'})
-                if not self.heal(actor):
-                    self.solve_task(actor, model_reply)
+                if uid not in self.ledger.used:
+                    self.heal(actor)
+                self.solve_task(actor, model_reply)
                 continue
             if not w.day and pos(actor["pos"]) not in w.danger_now and self.use_upgrade(actor):
                 continue
@@ -121,7 +120,7 @@ class AdaptiveStrategy:
             self.response["prompt"] = self.memory.news_prompt(w)
         if schema_errors(self.response):
             raise ValueError("internal response schema failure")
-        self.trace = {"strategy": "platform-v4", "elapsedMs": (time.perf_counter() - started) * 1000,
+        self.trace = {"strategy": "platform-v5", "elapsedMs": (time.perf_counter() - started) * 1000,
                       "layout": deepcopy(self.layout), "gunner": self.gunner, "wallBuilder": self.wall_builder,
                       "wallStockTarget": self.stone_target(),
                       "defensiveRobots": [r["id"] for r in w.robots if defensive_robot(r, w.base, w.side)],
@@ -133,6 +132,7 @@ class AdaptiveStrategy:
                       "prices": deepcopy(self.intelligence.prices),
                       "damagePerRound": dict(self.intelligence.damage_per_round)}
         self.previous_commands = deepcopy(self.response["roleCommandMap"])
+        self.previous_actor_hp = {a['id']: a['health'] for a in w.actors}
         self.cache_key, self.cache = key, deepcopy(self.response)
         return self.response
 
@@ -160,11 +160,15 @@ class AdaptiveStrategy:
         return path == []
 
     def escape(self, actor, allowed=None):
-        if actor["id"] == self.gunner or self.w.day or pos(actor["pos"]) not in self.w.danger_now:
+        hurt = allowed is not None and actor['health'] < self.previous_actor_hp.get(actor['id'], actor['health'])
+        if actor["id"] == self.gunner or self.w.day or (pos(actor["pos"]) not in self.w.danger_now and not hurt):
             return False
         p = pos(actor["pos"])
         def risk(cell):
-            return self.w.robot_risk.get(cell, 0) + self.w.enemy_fire_risk(cell) / 10
+            observed_risk = sum(ROBOT_STATS.get(r['roleType'], (0, 5, 0))[1]
+                                for r in self.w.robots if r.get('abnormalState') != 'dizzy'
+                                and distance(cell, pos(r['pos'])) <= 3) if hurt else 0
+            return self.w.robot_risk.get(cell, 0) + self.w.enemy_fire_risk(cell) / 10 + observed_risk
         options = [q for q in neighbours(p) if q not in self.w.blocked | self.reserved
                    and q != self.layout["hub"] and (allowed is None or q in allowed)]
         if options:
@@ -387,6 +391,9 @@ class AdaptiveStrategy:
         return False
 
     def accept_task(self, actor):
+        # User strategy: ten complete night turns must pass before accepting, not a game rule.
+        if not self.w.day and (self.w.round - 1) % 130 < 80:
+            return False
         candidates = []
         for task in self.w.tasks:
             if not task.get("isValid"):
@@ -398,6 +405,11 @@ class AdaptiveStrategy:
             cells = {c for c, k in self.w.zones.items() if k == kind}
             route = self.w.adjacent_route(actor, cells, self.reserved)
             if route is not None:
+                if self.w.day and len(route) + task.get('timeoutRounds', 15) + 1 > self.w.left:
+                    continue  # Avoid carrying a newly accepted task through the spawn window.
+                if not self.w.day and not route and (pos(actor['pos']) in self.w.danger_now
+                                                     or self.w.enemy_fire_risk(pos(actor['pos']))):
+                    continue
                 reward = task.get("scoreReward", 0) + task.get("goldReward", 0)
                 candidates.append((reward / (len(route) + 5), route, task))
         if not candidates:

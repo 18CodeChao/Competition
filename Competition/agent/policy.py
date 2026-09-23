@@ -4,7 +4,7 @@ import json
 
 from .audit import eligible
 from .rules import WEAPONS, pos, distance, footprint, command, max_health, inside
-from .tasks import TaskMemory, structured_answer
+from .tasks import TaskMemory, structured_answer, usable_answer
 from .strategy import AdaptiveStrategy
 from .intelligence import Intelligence
 
@@ -31,9 +31,14 @@ class Agent(AdaptiveStrategy):
         self.layout = None
         self.gunner_id = None
         self.trace = {}
+        self.previous_actor_hp = {}
 
 
     def emit(self, unit, cmd):
+        if (self.w.phase and unit['roleType'] == 'pioneer' and cmd['action'] == 'move'
+                and pos(cmd['targetPos'][0]) not in self.memory.task_area(self.w)):
+            self.diagnostics.append({'id': unit['id'], 'reason': '任务期间禁止移出已领取任务点范围'})
+            return False
         issue = eligible(self.w, unit["id"], cmd, self.ledger)
         if issue:
             self.diagnostics.append({"id": unit["id"], "reason": issue})
@@ -77,20 +82,29 @@ class Agent(AdaptiveStrategy):
             self.memory.history.append({"stage": "readTaskDocument", "command": probe})
             self.events.append({"kind": "taskProbe", "role": actor["id"]})
             return
-        answer = self.memory.command_answer
-        if reply and isinstance(reply.get("answer"), (str, dict, list, int, float)):
+        answer = self.memory.command_answer or self.memory.deferred_answer
+        if reply and not reply.get('executeCmd') and isinstance(reply.get("answer"), (str, dict, list, int, float)):
             answer = reply["answer"]
             if not isinstance(answer, str):
                 answer = json.dumps(answer, ensure_ascii=False)
         if answer is None:
             answer = structured_answer(self.w.phase)
+        if answer is not None and not usable_answer(answer):
+            self.memory.history.append({'localFeedback': '拒绝空值、占位或诊断答案；请读取缺失资料并继续求解', 'rejectedCandidate': answer})
+            self.events.append({'kind': 'answerBlocked', 'reason': '答案仅含占位值或诊断信息', 'answer': answer})
+            self.memory.deferred_answer = None
+            answer = None
         if answer is not None and answer != self.memory.submitted and answer not in self.memory.rejected:
-            if self.emit(actor, command("submitAnswer", taskAnswer=answer)):
+            self.memory.deferred_answer = answer
+            if actor['id'] not in self.ledger.used and self.emit(actor, command("submitAnswer", taskAnswer=answer)):
+                self.memory.deferred_answer = None
                 self.memory.submitted = answer
                 self.memory.submitted_round = self.w.round
                 self.memory.history.append({"submitted": answer})
                 self.events.append({"kind": "taskSubmit", "role": actor["id"], "answer": answer})
                 return
+            if actor['id'] in self.ledger.used:
+                return  # Keep the validated candidate while sidestepping/healing this turn.
         if reply and isinstance(reply.get("executeCmd"), str) and reply["executeCmd"]:
             cmd = reply["executeCmd"]
             self.memory.command_repeats = self.memory.command_repeats + 1 if cmd == self.memory.last_command else 1

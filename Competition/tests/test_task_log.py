@@ -119,7 +119,7 @@ class TaskLogTests(unittest.TestCase):
             self.assertEqual(m.last_treasure_feedback['code'], code)
 
     def test_brief_log_has_session_only_once_and_pairs_answer_feedback(self):
-        stream = io.StringIO(); journal = ReadableJournal(stream)
+        stream = io.StringIO(); journal = ReadableJournal(stream, output_format='json')
         p = self.payload()
         p['phaseTask'] = 'fixture'
         response = {'roleCommandMap': {'10011': command('submitAnswer', taskAnswer='candidate')}, 'prompt': '', 'executeCmd': ''}
@@ -140,7 +140,7 @@ class TaskLogTests(unittest.TestCase):
         self.assertIn('字段级', verdict['reason'])
 
     def test_disappearing_task_without_positive_feedback_not_called_correct(self):
-        stream = io.StringIO(); j = ReadableJournal(stream)
+        stream = io.StringIO(); j = ReadableJournal(stream, output_format='json')
         p = self.payload(); p['phaseTask'] = 'fixture'
         j.record(p, {'roleCommandMap': {'10011': command('submitAnswer', taskAnswer='x')}}, {}, 1)
         p = self.payload(2); p['phaseTask'] = ''; p['lastRoundRoleActionResults'] = {}

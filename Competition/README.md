@@ -1,9 +1,10 @@
-# 未来战争：参赛程序与本地判题器（任务与日志修复版 v4）
+# 未来战争：参赛程序与本地判题器（中文日志与任务安全版 v5）
 
 目标 Python **3.11.10**，仅依赖标准库。官方 docs 和 Demo 保留原样。
-可直接使用本轮生成的 [dist/submission-v4.zip](dist/submission-v4.zip)，解压后根目录包含 `run.sh`。
+可直接使用本轮生成的 [dist/submission-v5.zip](dist/submission-v5.zip)，解压后根目录包含 `run.sh`。
 本版使用指定后方三炮位、固定工人守炮、严格区分两方机器人，以及平台标准输出日志。
-本轮日志分析、改动与边界见 [docs/LOG_TASK_V4.md](docs/LOG_TASK_V4.md)；
+本轮日志分析、改动与边界见 [docs/LOG_TASK_V5.md](docs/LOG_TASK_V5.md)；
+此前 v4 任务修复见 [docs/LOG_TASK_V4.md](docs/LOG_TASK_V4.md)；
 此前平台修复见 [docs/PLATFORM_V3.md](docs/PLATFORM_V3.md)；
 历史 v2 策略与模拟假设见 [docs/EXPERIENCE_V2.md](docs/EXPERIENCE_V2.md)；
 基础接口、图片解读及未覆盖规则见 [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md)。
@@ -37,7 +38,7 @@ python -m local_judge --seeds 1 --opponent v2 --unknown-waves growth --swap --re
 `--swap`为同种子左右各运行一次；每场最多1300轮，报告同时保存半场与双半场本地结果。
 默认 `--profile observed` 使用用户反馈的基地和前八夜波次；第九、十夜未知，
 `--unknown-waves hold8`（默认）沿用第八夜，`growth` 是人为递增压力情景，均非官方数据。
-`--opponent v3`（默认）加载 `reports/baseline-v3.zip`；`v2`和`previous`保留旧对手，双方使用同一环境。
+`--opponent v4`（默认）加载 `reports/baseline-v4.zip`；`v3`、`v2`和`previous`保留旧对手，双方使用同一环境。
 observed环境按用户最新反馈改为机器人以基地为目标，仅攻击挡路单位；具体路径选择仍是本地假设。
 1040轮只覆盖已知的前8天，不是完整比赛，不计算最终胜负。
 `--profile legacy` 保留第一版假设环境。`--pressure`也是本地压力参数。
@@ -62,25 +63,28 @@ python -m unittest discover -s tests -v
 ```
 
 测试包含独立预期的规则案例、HTTP往返、官方请求样例、错误输入，以及注入LLM/命令结果的跨轮任务闭环。
-真实Python运行版本和本版实测结果见 [reports/VALIDATION_V4.md](reports/VALIDATION_V4.md)。
+真实Python运行版本和本版实测结果见 [reports/VALIDATION_V5.md](reports/VALIDATION_V5.md)。
 第一版及开发中间报告保留作历史证据，不代表最终源码验证。
 
 ## 对局日志与地图
 
-正式程序只输出stdout，由平台采集。默认每轮一条简明状态：金币、分数、基地血量、角色位置/血量/背包、
-动作与上一轮反馈。任务原文、答案、判题反馈、新闻、沙盒结果等按事件输出。
-session和代码版本只在启动记录一次；不再重复完整请求、哈希、敌情历史或整张地图。
-普通记录以 `BATTLE ` 开始；个别长事件以 `BATTLE_PART ` 分段，不重复session。
+正式程序只输出stdout，由平台采集。默认使用中文 `Round / Request / Response` 分回合格式。
+记录金币、分数、基地血量、每个角色独立的位置/血量/背包、本轮指令与上一轮反馈。
+非空的任务原文、答案、判题反馈、新闻、LLM返回、沙盒结果、Prompt和executeCmd均记录原文。
+session和代码版本只在启动记录一次；不重复完整请求、哈希、敌情历史或整张地图。
+本轮采集只是下发指令；下一轮动作合法且背包增加后才记录“确认获得”。答案错因只来自实际判题反馈。
 地图默认关闭，`--map-every 130` 可启用。框架异常输出到 stderr，不使用 `--log-dir`。
+
+中文日志直接人工阅读；旧结构化分析器仍可配合显式 `python main.py 8080 --log-format json` 使用：
 
 ```powershell
 python -m local_judge.analyze 平台下载日志.txt --round 71 --side challenger --output reports/log-analysis.txt
 ```
 
-分析器支持新简明日志、平台时间戳前缀、分段重组、旧JSONL，统计缺段及损坏记录。
+分析器支持 JSON 模式的 `BATTLE` / `BATTLE_PART`、平台时间戳前缀、分段重组、旧JSONL；不解析默认中文文本。
 完整错误说明原样记录；判题器未提供错项时明确写未知，不将动作合法判为答案正确。
 简明日志不包含所有原始观测，无法完整重放旧版全部决策；优先满足人工复盘。
-样例见 [reports/v4-log-example.txt](reports/v4-log-example.txt)。
+样例见 [reports/v5-log-example.txt](reports/v5-log-example.txt)。
 
 ## 文件职责
 

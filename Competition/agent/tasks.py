@@ -3,6 +3,25 @@ import json
 import re
 from pathlib import PurePosixPath
 from .task_tools import document_probe, sandbox_body, checker_answer
+from .rules import pos, distance, neighbours
+
+
+def usable_answer(answer):
+    """Reject empty/placeholder diagnostics, while preserving legitimate zero/false values."""
+    if isinstance(answer, str):
+        if answer.strip().lower() in ('', 'null', 'none', 'unknown', '待获取', '待确定', '待查询'):
+            return False
+        try:
+            return usable_answer(json.loads(answer))
+        except ValueError:
+            return True
+    if isinstance(answer, dict):
+        if set(answer) <= {'task_info', 'facts', 'error', 'notes', 'needs', 'status', 'progress'}:
+            return False
+        return any(usable_answer(v) for v in answer.values())
+    if isinstance(answer, list):
+        return any(usable_answer(v) for v in answer)
+    return answer is not None
 
 
 def json_object(text):
@@ -89,6 +108,8 @@ class TaskMemory:
         self.treasure_done = False
         self.news_updated = False
         self.last_treasure_feedback = None
+        self.task_kind = None
+        self.deferred_answer = None
 
     def update(self, w):
         self.news_updated = False
@@ -137,11 +158,19 @@ class TaskMemory:
             self.submitted_round = None
             self.task_start = w.round - 1 if w.phase else None
             self.probe_sent, self.task_documents = False, None
+            self.task_kind, self.deferred_answer = None, None
             self.command_repeats, self.last_command = 0, None
             nearby = [t for t in w.tasks if pioneer and max(abs(pioneer["pos"][k] - t["taskPosition"][k]) for k in ("x", "y")) <= 2]
             self.task_timeout = min((t.get("timeoutRounds", 100) for t in nearby), default=100)
             if w.phase and self.accepted and self.accepted[0] == w.round - 1:
                 self.task_start, self.task_timeout = self.accepted[0], self.accepted[1].get("timeoutRounds", 100)
+                if 'taskPosition' in self.accepted[1]:
+                    self.task_kind = w.zones.get(pos(self.accepted[1]['taskPosition']))
+            if w.phase and self.task_kind is None and pioneer:
+                kinds = {kind for cell, kind in w.zones.items()
+                         if kind.startswith(w.side + 'TaskPoint') and distance(cell, pos(pioneer['pos'])) == 1}
+                if len(kinds) == 1:
+                    self.task_kind = kinds.pop()
             self.accepted = None
         body = sandbox_body(w.raw.get("lastCmdResult", ""))
         if self.probe_sent and w.phase and body:
@@ -205,9 +234,19 @@ class TaskMemory:
                 "禁止篡改检查器或从其源码提取答案。若题目要求成功检查器输出的token，"
                 "可返回answerFromCommand:true,answerFormat:checkerToken，保留最终[ OK ]全部通过与TOKEN行。"
                 "不要混用上题工作区、接口参数或token。剩余回合紧张时避免无关探测，合并读取、修复和验证。\n" +
+                "不要提交task_info、facts、notes、error等诊断包装或null/unknown/待获取占位答案。"
+                "executeCmd与answer二选一；资料尚未读到就继续读取，不要强行提交。"
+                "工具只可使用当前沙盒实际存在的命令或标准库，不要假设cg_http、cg_read_text_file等选手自建工具存在。"
+                "数据查询题核对HTTP状态码并读取错误正文，按原文修正认证、路径、参数；"
+                "分页直到文档定义的结束条件，保留统计总条数；取不全或字段不明时不能声称已自检。"
+                "若任务文档被截断，按已知路径分段读取缺失部分，不能用残缺题目猜答案。\n" +
                 json.dumps({"task": w.phase, "budget": self.diagnostics(w), "history": self.history,
                             "taskDocument": self.task_documents,
                             "rejectedAnswers": sorted(self.rejected), "verifiedSkills": self.skills}, ensure_ascii=False))
+
+    def task_area(self, w):
+        cells = {p for p, kind in w.zones.items() if kind == self.task_kind} if self.task_kind else set()
+        return {q for cell in cells for q in neighbours(cell)} - cells
 
     def probe_command(self, w):
         if self.probe_sent:
