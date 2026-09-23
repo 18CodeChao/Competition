@@ -19,7 +19,7 @@ class EventJournal:
         for p in sorted(Path(__file__).parent.glob('*.py')):
             digest.update(p.name.encode())
             digest.update(p.read_bytes())
-        self.emit({'type': 'start', 'session': uuid.uuid4().hex[:12], 'version': 'v5', 'code': digest.hexdigest()[:12]})
+        self.emit({'type': 'start', 'session': uuid.uuid4().hex[:12], 'version': 'v6', 'code': digest.hexdigest()[:12]})
 
     def emit(self, record):
         text = json.dumps(record, ensure_ascii=False, separators=(',', ':'), allow_nan=False)
@@ -104,7 +104,7 @@ class EventJournal:
                 event(name, text=value[:10000], omittedChars=max(0, len(value) - 10000))
         if response.get('executeCmd'):
             probe = next((e for e in trace.get('events', []) if e.get('kind') == 'taskProbe'), None)
-            cmd = '读取本轮题目文件及同目录接口文档（只读）' if probe else response['executeCmd']
+            cmd = '读取本轮题目并执行已识别的沙盒任务流程' if probe else response['executeCmd']
             event('sandboxCommand', command=cmd[:8000], omittedChars=max(0, len(cmd) - 8000))
         for e in trace.get('events', []):
             if e.get('kind') in ('retreat', 'taskSidestep', 'treasureInference', 'taskProbe'):

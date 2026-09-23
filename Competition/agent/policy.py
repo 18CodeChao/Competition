@@ -79,16 +79,23 @@ class Agent(AdaptiveStrategy):
         probe = self.memory.probe_command(self.w)
         if probe:
             self.response["executeCmd"] = probe
-            self.memory.history.append({"stage": "readTaskDocument", "command": probe})
+            self.memory.history.append({"stage": "readCurrentTaskAndRunRecognizedWorkflow"})
             self.events.append({"kind": "taskProbe", "role": actor["id"]})
             return
         answer = self.memory.command_answer or self.memory.deferred_answer
-        if reply and not reply.get('executeCmd') and isinstance(reply.get("answer"), (str, dict, list, int, float)):
+        if answer is None and reply and not reply.get('executeCmd') and isinstance(reply.get("answer"), (str, dict, list, int, float)):
             answer = reply["answer"]
             if not isinstance(answer, str):
                 answer = json.dumps(answer, ensure_ascii=False)
         if answer is None:
             answer = structured_answer(self.w.phase)
+        if answer is not None and self.memory.contract:
+            original = answer
+            answer = self.memory.normalize_answer(answer)
+            if answer is None:
+                reason = '缺少本题检查器成功TOKEN或全量统计证据，不能提交猜测内容'
+                self.memory.history.append({'localFeedback': reason, 'candidate': original})
+                self.events.append({'kind': 'answerBlocked', 'reason': reason})
         if answer is not None and not usable_answer(answer):
             self.memory.history.append({'localFeedback': '拒绝空值、占位或诊断答案；请读取缺失资料并继续求解', 'rejectedCandidate': answer})
             self.events.append({'kind': 'answerBlocked', 'reason': '答案仅含占位值或诊断信息', 'answer': answer})
@@ -115,6 +122,7 @@ class Agent(AdaptiveStrategy):
                 return
             # Forward only; the participant process NEVER invokes a shell.
             self.response["executeCmd"] = reply["executeCmd"]
+            self.memory.executed_round = self.w.round
             self.memory.command_answer_pending = reply.get("answerFromCommand") is True
             self.memory.command_format = reply.get("answerFormat")
             self.memory.history.append({"executed": reply["executeCmd"]})

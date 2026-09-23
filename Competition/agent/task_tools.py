@@ -1,7 +1,8 @@
-"""Build a read-only command for the official sandbox; never run it in the agent."""
+"""Build official sandbox commands; reading only by default, optional known task workflow."""
 import json
 import re
 import shlex
+from importlib.resources import files
 
 
 def task_filename(description):
@@ -9,7 +10,7 @@ def task_filename(description):
     return match.group(1) if match else None
 
 
-def document_probe(description, known_roots=()):
+def document_probe(description, known_roots=(), *, solve=False, recipes=()):
     name = task_filename(description)
     if not name:
         return None
@@ -62,6 +63,11 @@ elif found:
             result['related'].append(read(p, 6000))
 print(json.dumps({'taskProbe': result}, ensure_ascii=False))
 '''.replace("INPUT", repr((name, list(known_roots))))
+    if solve:
+        source = files(__package__).joinpath('sandbox_tasks.py').read_text(encoding='utf-8')
+        script = source + '\n' + script.replace("print(json.dumps({'taskProbe': result}, ensure_ascii=False))",
+            "result['taskExecution'] = solve_probe(result, " + repr(list(recipes)) + ")\n"
+            "print(json.dumps({'taskProbe': result}, ensure_ascii=False))")
     return "python3 -c " + shlex.quote(script)
 
 

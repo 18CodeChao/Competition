@@ -1,0 +1,117 @@
+{
+  "code": 200,
+  "data": {
+    "records": [
+      {
+        "id": "BJ001",
+        "name": "故宫",
+        "type": "建筑",
+        "era": "明清",
+        "protected_level": "世界遗产"
+      },
+      {
+        "id": "BJ002",
+        "name": "天坛",
+        "type": "建筑",
+        "era": "明",
+        "protected_level": "世界遗产"
+      },
+      {
+        "id": "BJ003",
+        "name": "颐和园",
+        "type": "园林",
+        "era": "清",
+        "protected_level": "世界遗产"
+      },
+      {
+        "id": "BJ004",
+        "name": "明十三陵",
+        "type": "陵墓",
+        "era": "明",
+        "protected_level": "世界遗产"
+      },
+      {
+        "id": "BJ005",
+        "name": "长城(北京段)",
+        "type": "军事防御",
+        "era": "明",
+        "protected_level": "世界遗产"
+      },
+      {
+        "id": "BJ006",
+        "name": "周口店遗址",
+        "type": "遗址",
+        "era": "旧石器时代",
+        "protected_level": "世界遗产"
+      },
+      {
+        "id": "BJ007",
+        "name": "雍和宫",
+        "type": "宗教建筑",
+        "era": "清",
+        "protected_level": "全国重点"
+      },
+      {
+        "id": "BJ008",
+        "name": "恭王府",
+        "type": "建筑",
+        "era": "清",
+        "protected_level": "全国重点"
+      },
+      {
+        "id": "BJ009",
+        "name": "北海公园",
+        "type": "园林",
+        "era": "辽金元明清",
+        "protected_level": "全国重点"
+      },
+      {
+        "id": "BJ010",
+        "name": "国子监",
+        "type": "教育建筑",
+        "era": "元明清",
+        "protected_level": "全国重点"
+      },
+      {
+        "id": "BJ011",
+        "name": "潭柘寺",
+        "type": "宗教建筑",
+        "era": "晋",
+        "protected_level": "全国重点"
+      },
+      {
+        "id": "BJ012",
+        "name": "卢沟桥",
+        "type": "桥梁",
+        "era": "金",
+        "protected_level": "全国重点"
+      },
+      {
+        "id": "BJ013",
+        "name": "正阳门",
+        "type": "城门",
+        "era": "明",
+        "protected_level": "全国重点"
+      },
+      {
+        "id": "BJ014",
+        "name": "鼓楼",
+        "type": "建筑",
+        "era": "元",
+        "protected_level": "全国重点"
+      },
+      {
+        "id": "BJ015",
+        "name": "圆明园遗址",
+        "type": "遗址",
+        "era": "清",
+        "protected_level": "全国重点"
+      }
+    ],
+    "pagination": {
+      "total_count": 15,
+      "offset": 0,
+      "limit": 100
+    }
+  }
+}

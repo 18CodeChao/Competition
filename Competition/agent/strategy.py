@@ -120,7 +120,7 @@ class AdaptiveStrategy:
             self.response["prompt"] = self.memory.news_prompt(w)
         if schema_errors(self.response):
             raise ValueError("internal response schema failure")
-        self.trace = {"strategy": "platform-v5", "elapsedMs": (time.perf_counter() - started) * 1000,
+        self.trace = {"strategy": "platform-v6", "elapsedMs": (time.perf_counter() - started) * 1000,
                       "layout": deepcopy(self.layout), "gunner": self.gunner, "wallBuilder": self.wall_builder,
                       "wallStockTarget": self.stone_target(),
                       "defensiveRobots": [r["id"] for r in w.robots if defensive_robot(r, w.base, w.side)],
