@@ -13,9 +13,10 @@ from .protocol import empty_response, schema_errors
 from .rules import (WEAPONS, MINERALS, UPGRADES, pos, distance, footprint, neighbours,
                     command, max_health, ROBOT_STATS)
 from .world import World
+from .tactics import FieldTactics
 
 
-class AdaptiveStrategy:
+class AdaptiveStrategy(FieldTactics):
     def decide(self, payload):
         started = time.perf_counter()
         deadline = started + 2.5
@@ -56,10 +57,12 @@ class AdaptiveStrategy:
         self.gunner = self.select_gunner(hub)
         self.wall_builder = self.select_builder()
         self.w.gunner_id = self.gunner
+        self.prepare_tactics()
+        hub = self.operator_hub = self.operator_post()
         self.w.protected_hub = hub
         if not w.day:
             self.fight(deadline)
-        ordered = sorted(w.actors, key=lambda a: (a["id"] != self.gunner, a["roleType"] != "pioneer", a["id"]))
+        ordered = sorted(w.actors, key=lambda a: (a["id"] != self.gunner, a['id'] != self.wall_builder, a["id"]))
         for actor in ordered:
             uid = actor["id"]
             if uid in self.ledger.used:
@@ -80,7 +83,21 @@ class AdaptiveStrategy:
                     self.heal(actor)
                 self.solve_task(actor, model_reply)
                 continue
-            if not w.day and pos(actor["pos"]) not in w.danger_now and self.use_upgrade(actor):
+            if self.guard_operator(actor) or self.emergency_rebuild(actor):
+                continue
+            if self.day_no < 4 and self.breaches and self.reserve_stone(actor):
+                continue
+            if actor['id'] == self.wall_builder and self.day_no >= 4:
+                if self.use_upgrade(actor, defense_only=True) or self.maintenance_duty(actor):
+                    continue
+                # Acquire reserve stone before optional purchases/mining; do not
+                # let expensive weapon upgrades consume the maintenance budget.
+                if self.reserve_stone(actor) or self.buy_defense_stock(actor):
+                    continue
+                if self.boss_pressure(actor) or self.interference(actor):
+                    continue
+            raiding = uid in self.raid_assignments or uid in self.raiders
+            if not w.day and not raiding and pos(actor["pos"]) not in w.danger_now and self.use_upgrade(actor):
                 continue
             if self.escape(actor) or self.heal(actor):
                 continue
@@ -89,10 +106,12 @@ class AdaptiveStrategy:
                 if w.left <= (len(path) if path is not None else 25) + 8:
                     self.walk_exact(actor, hub, caution=None)
                     continue
-            if self.use_upgrade(actor):
+            if not raiding and self.use_upgrade(actor):
                 continue
             if actor["roleType"] == "worker":
                 if w.day and self.construct(actor):
+                    continue
+                if actor['id'] != self.gunner and (self.boss_pressure(actor) or self.interference(actor)):
                     continue
                 # Only the designated gunner returns before dusk. Workers/pioneer stay productive.
                 if w.day and uid == self.gunner and hub:
@@ -107,6 +126,9 @@ class AdaptiveStrategy:
                     self.solve_task(actor, model_reply)
                     continue
                 if self.treasure(actor) or self.accept_task(actor):
+                    self.raiders.discard(uid)
+                    continue
+                if self.interference(actor):
                     continue
                 if self.procure(actor):
                     continue
@@ -120,8 +142,10 @@ class AdaptiveStrategy:
             self.response["prompt"] = self.memory.news_prompt(w)
         if schema_errors(self.response):
             raise ValueError("internal response schema failure")
-        self.trace = {"strategy": "platform-v6", "elapsedMs": (time.perf_counter() - started) * 1000,
+        self.trace = {"strategy": "platform-v7", "elapsedMs": (time.perf_counter() - started) * 1000,
                       "layout": deepcopy(self.layout), "gunner": self.gunner, "wallBuilder": self.wall_builder,
+                      'operatorPost': hub, 'breaches': sorted(self.breaches),
+                      'raidAssignments': deepcopy(self.raid_assignments), 'blockingBreach': self.blocking_breach,
                       "wallStockTarget": self.stone_target(),
                       "defensiveRobots": [r["id"] for r in w.robots if defensive_robot(r, w.base, w.side)],
                       "ignoredRobots": [r["id"] for r in w.robots if not defensive_robot(r, w.base, w.side)],
@@ -212,7 +236,8 @@ class AdaptiveStrategy:
         return set(self.layout["walls"]) - present
 
     def stone_target(self):
-        return min(10, len(self.missing_walls()))
+        reserve = 3 if (self.w.round - 1) // 130 + 1 >= 4 else 0
+        return min(10, len(self.missing_walls()) + reserve)
 
     def construct(self, actor):
         w = self.w
@@ -253,47 +278,58 @@ class AdaptiveStrategy:
                 return self.emit(actor, command("move", [path[0]]) if path else command("build", [site], name="wall"))
         return False
 
-    def use_upgrade(self, actor):
+    def use_upgrade(self, actor, defense_only=False):
         w = self.w
-        for item in actor.get("backpack", []):
+        all_candidates = []
+        for item in sorted(set(actor.get("backpack", []))):
             if item not in UPGRADES and item != "WallFixer":
                 continue
-            candidates = []
             for building in w.ours:
                 if building["id"] in self.maintenance_targets:
                     continue
                 kind, level = building["roleType"], building.get("level", 1)
+                if defense_only and kind not in ('station', 'wall'):
+                    continue
                 if item == "WallFixer":
                     if kind != "wall":
                         continue
                 elif kind not in UPGRADES[item][0] or level != UPGRADES[item][1]:
                     continue
                 maximum = max_health(kind, level)
-                incoming = max(self.intelligence.damage_per_round.get(building["id"], 0),
-                               self.intelligence.attack_risk(w, building))
-                route = w.adjacent_route(actor, footprint(building), self.reserved,
-                                         caution=kind != "wall")
+                route = (self.repair_route(actor, building) if kind in ('wall', 'station') else
+                         w.adjacent_route(actor, footprint(building), self.reserved))
                 if not w.day and actor["id"] == self.gunner and route:
                     continue
                 travel = len(route) if route is not None else 0
-                threshold = max(.55 * maximum, (travel + 2) * incoming + 1)
+                incoming = self.incoming_damage(building, travel)
+                threshold = max(.55 * maximum, (travel + 3) * incoming + 1)
                 # Weapons gain damage/range immediately. Base/wall vouchers retain their healing option.
-                needed = building["health"] <= threshold or (kind in WEAPONS and item in UPGRADES)
+                needed = ((building['health'] < maximum and building['health'] <= threshold)
+                          or (item in UPGRADES and incoming * (travel + 1) >= building['health'])
+                          or (kind in WEAPONS and item in UPGRADES))
                 if not needed or (item == "WallFixer" and building["health"] == maximum):
                     continue
                 if route is not None:
-                    candidates.append((building["health"] / max(1, incoming), len(route), building, route, threshold))
-            if candidates:
-                _, _, building, route, threshold = min(candidates, key=lambda c: (c[0], c[1], c[2]["id"]))
-                self.maintenance_targets.add(building["id"])
-                self.events.append({"kind": "maintenance", "role": actor["id"], "building": building["id"],
-                                    "item": item, "hp": building["health"], "threshold": threshold})
-                if route:
-                    return self.emit(actor, command("move", [route[0]]))
-                return self.emit(actor, command("use", [pos(building["pos"])], name=item))
+                    # Select endangered building first, then upgrade before fixer
+                    # for that same target, regardless of backpack order.
+                    urgency = building['health'] / max(1, incoming)
+                    priority = (0 if kind == 'station' and building['health'] <= max(.35 * maximum, (travel + 2) * incoming)
+                                else 2 if kind in WEAPONS else 1)
+                    all_candidates.append((priority, urgency, len(route), building['id'], item == 'WallFixer', item, building, route, threshold, incoming))
+        if all_candidates:
+            _, _, _, _, _, item, building, route, threshold, incoming = min(all_candidates, key=lambda c: c[:6])
+            self.maintenance_targets.add(building['id'])
+            self.events.append({'kind': 'maintenance', 'role': actor['id'], 'building': building['id'],
+                                'item': item, 'hp': building['health'], 'threshold': threshold,
+                                'incomingEstimate': incoming, 'travelRounds': len(route)})
+            if route:
+                return self.emit(actor, command('move', [route[0]]))
+            return self.emit(actor, command('use', [pos(building['pos'])], name=item))
         return False
 
     def hold_mineral(self, name, actor):
+        if self.blocking_breach:
+            return False
         day = (self.w.round - 1) // 130 + 1
         if self.ledger.gold < 30 or len(actor.get("backpack", [])) >= actor.get("backPackCapability", 100) - 10:
             return False
@@ -309,6 +345,15 @@ class AdaptiveStrategy:
 
     def procure(self, actor):
         w = self.w
+        if actor['id'] == self.wall_builder and self.day_no >= 4:
+            if self.buy_defense_stock(actor):
+                return True
+            # Keep available money for personal maintenance stock/BOSS pressure.
+            bag = Counter(actor.get('backpack', []))
+            if self.blocking_breach or any(bag[n] < count for n, count in self.defense_stock(actor)):
+                return False
+        if self.blocking_breach:
+            return False
         shops = {c for c, k in w.zones.items() if k == "weaponShop"}
         # Buy upgrades/repair stock before undertaking another long mining trip.
         owned = {item for u in w.actors for item in u.get("backpack", [])} | self.purchase_names
@@ -359,7 +404,7 @@ class AdaptiveStrategy:
             return self.emit(actor, command("sell", name=name, num=sellable[name]))
         if self.procure(actor):
             return True
-        if minerals >= 15 or (minerals and sum(bag.values()) >= actor.get("backPackCapability", 100) - 5):
+        if minerals >= (5 if self.blocking_breach else 15) or (minerals and sum(bag.values()) >= actor.get("backPackCapability", 100) - 5):
             if self.walk(actor, vendors):
                 return True
         if sum(bag.values()) >= actor.get("backPackCapability", 100):

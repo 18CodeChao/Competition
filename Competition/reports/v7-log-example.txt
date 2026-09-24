@@ -1,0 +1,166 @@
+对局启动 session=9e4f21652507 version=v7 code=81d01d79732e
+----------------------------------
+Round 390：
+Request：
+官方消息和民间新闻为：
+  {
+    "officialNews": "铁矿明日起停采两天，期间收购价上涨。",
+    "folkLegends": ""
+  }
+资源：金币 0，积分 0
+基地：等级 1，血量 1500
+Response：
+工人 10010 原地待命；位置(8,21) 血量220；当前背包为空
+开拓者 10011 移动至(19,12)（下发，待下轮确认）；位置(20,13) 血量200；当前背包为空
+工人 10012 移动至(10,20)（下发，待下轮确认）；位置(11,21) 血量220；当前背包有 3个石头、2个WallUpgradeVoucher1、1个WallUpgradeVoucher2、2个修墙包、1个StationUpgradeVoucher1
+Prompt为：
+  根据全部新闻提取约束，只返回JSON。未知内容不要猜。treasure为空或为{certain:true,pos:{x:整数,y:整数},items:[物品英文名],startRound:整数,endRound:整数,evidence:{position:坐标原文依据,items:完整物品集原文依据,time:时间原文依据}}；维护clues数组及missing、conflicts数组。未给出坐标/时间时保留线索并列为missing，禁止把年龄、水位等干扰数字当坐标。物品必须不多不少。古符石板=AcientTablet、星辰之沙=StarSand、烈焰之息=FlameBreath、寒霜药剂=FrostPotion、荆棘护符=ThornAmulet、回音铁哨=IronWhistle，最终以当场shop为准。新传闻须与之前逐条核对，否定线索覆盖猜测；不是多轮自进化任务，不需要executeCmd。closures为[{name:stone/iron/copper,startDay:整数,endDay:整数}]。priceForecasts为[{name:stone/iron/copper,startDay:整数,endDay:整数,direction:up,confidence:0到1,evidence:新闻原文依据}]；只根据明确新闻给出上涨预期。一天130回合，从1开始。仅确定且无冲突时certain=true。
+  {"news": [{"round": 390, "content": {"officialNews": "铁矿明日起停采两天，期间收购价上涨。", "folkLegends": ""}}], "previousInference": null, "lastAttempt": null, "shop": {"WeaponUpgradeVoucher1": 100, "WeaponUpgradeVoucher2": 150, "StationUpgradeVoucher1": 100, "StationUpgradeVoucher2": 150, "WallUpgradeVoucher1": 20, "WallUpgradeVoucher2": 30, "WallFixer": 10, "Medicine": 10, "DizzyWeapon": 100, "Bomb": 100, "SmallRobotSummonOrder": 20, "MiddleRobotSummonOrder": 30, "LargeRobotSummonOrder": 100, "BossRobotSummonOrder": 200, "AcientTablet": 15, "StarSand": 15, "FlameBreath": 15, "FrostPotion": 15, "ThornAmulet": 15, "IronWhistle": 15}}
+----------------------------------
+Round 391：
+Request：
+官方消息和民间新闻为：
+  {
+    "officialNews": "铁矿明日起停采两天，期间收购价上涨。",
+    "folkLegends": ""
+  }
+资源：金币 0，积分 0
+基地：等级 1，血量 1500
+Response：
+工人 10010 移动至(7,20)（下发，待下轮确认）；位置(8,21) 血量220；当前背包为空
+开拓者 10011 移动至(21,12)（下发，待下轮确认）；位置(20,13) 血量200；当前背包为空
+工人 10012 建造围墙(12,21)（下发，待下轮确认）；位置(11,21) 血量220；当前背包有 3个石头、2个WallUpgradeVoucher1、1个WallUpgradeVoucher2、2个修墙包、1个StationUpgradeVoucher1
+Prompt为：
+  根据全部新闻提取约束，只返回JSON。未知内容不要猜。treasure为空或为{certain:true,pos:{x:整数,y:整数},items:[物品英文名],startRound:整数,endRound:整数,evidence:{position:坐标原文依据,items:完整物品集原文依据,time:时间原文依据}}；维护clues数组及missing、conflicts数组。未给出坐标/时间时保留线索并列为missing，禁止把年龄、水位等干扰数字当坐标。物品必须不多不少。古符石板=AcientTablet、星辰之沙=StarSand、烈焰之息=FlameBreath、寒霜药剂=FrostPotion、荆棘护符=ThornAmulet、回音铁哨=IronWhistle，最终以当场shop为准。新传闻须与之前逐条核对，否定线索覆盖猜测；不是多轮自进化任务，不需要executeCmd。closures为[{name:stone/iron/copper,startDay:整数,endDay:整数}]。priceForecasts为[{name:stone/iron/copper,startDay:整数,endDay:整数,direction:up,confidence:0到1,evidence:新闻原文依据}]；只根据明确新闻给出上涨预期。一天130回合，从1开始。仅确定且无冲突时certain=true。
+  {"news": [{"round": 390, "content": {"officialNews": "铁矿明日起停采两天，期间收购价上涨。", "folkLegends": ""}}], "previousInference": null, "lastAttempt": null, "shop": {"WeaponUpgradeVoucher1": 100, "WeaponUpgradeVoucher2": 150, "StationUpgradeVoucher1": 100, "StationUpgradeVoucher2": 150, "WallUpgradeVoucher1": 20, "WallUpgradeVoucher2": 30, "WallFixer": 10, "Medicine": 10, "DizzyWeapon": 100, "Bomb": 100, "SmallRobotSummonOrder": 20, "MiddleRobotSummonOrder": 30, "LargeRobotSummonOrder": 100, "BossRobotSummonOrder": 200, "AcientTablet": 15, "StarSand": 15, "FlameBreath": 15, "FrostPotion": 15, "ThornAmulet": 15, "IronWhistle": 15}}
+缺口重建：
+  {
+    "role": 10012,
+    "target": [
+      12,
+      21
+    ],
+    "reason": "已知防线缺口优先重建，不等待攒满石头"
+  }
+侦察/卡位：
+  {
+    "role": 10011,
+    "mode": "scout",
+    "target": [
+      26,
+      7
+    ],
+    "holding": false
+  }
+----------------------------------
+Round 390：
+Request：
+官方消息和民间新闻为：
+  {
+    "officialNews": "铁矿明日起停采两天，期间收购价上涨。",
+    "folkLegends": ""
+  }
+资源：金币 0，积分 0
+基地：等级 1，血量 1500
+Response：
+工人 20010 原地待命；位置(32,10) 血量220；当前背包为空
+开拓者 20011 移动至(21,12)（下发，待下轮确认）；位置(20,13) 血量200；当前背包为空
+工人 20012 移动至(30,11)（下发，待下轮确认）；位置(29,10) 血量220；当前背包有 3个石头、2个WallUpgradeVoucher1、1个WallUpgradeVoucher2、2个修墙包、1个StationUpgradeVoucher1
+Prompt为：
+  根据全部新闻提取约束，只返回JSON。未知内容不要猜。treasure为空或为{certain:true,pos:{x:整数,y:整数},items:[物品英文名],startRound:整数,endRound:整数,evidence:{position:坐标原文依据,items:完整物品集原文依据,time:时间原文依据}}；维护clues数组及missing、conflicts数组。未给出坐标/时间时保留线索并列为missing，禁止把年龄、水位等干扰数字当坐标。物品必须不多不少。古符石板=AcientTablet、星辰之沙=StarSand、烈焰之息=FlameBreath、寒霜药剂=FrostPotion、荆棘护符=ThornAmulet、回音铁哨=IronWhistle，最终以当场shop为准。新传闻须与之前逐条核对，否定线索覆盖猜测；不是多轮自进化任务，不需要executeCmd。closures为[{name:stone/iron/copper,startDay:整数,endDay:整数}]。priceForecasts为[{name:stone/iron/copper,startDay:整数,endDay:整数,direction:up,confidence:0到1,evidence:新闻原文依据}]；只根据明确新闻给出上涨预期。一天130回合，从1开始。仅确定且无冲突时certain=true。
+  {"news": [{"round": 390, "content": {"officialNews": "铁矿明日起停采两天，期间收购价上涨。", "folkLegends": ""}}], "previousInference": null, "lastAttempt": null, "shop": {"WeaponUpgradeVoucher1": 100, "WeaponUpgradeVoucher2": 150, "StationUpgradeVoucher1": 100, "StationUpgradeVoucher2": 150, "WallUpgradeVoucher1": 20, "WallUpgradeVoucher2": 30, "WallFixer": 10, "Medicine": 10, "DizzyWeapon": 100, "Bomb": 100, "SmallRobotSummonOrder": 20, "MiddleRobotSummonOrder": 30, "LargeRobotSummonOrder": 100, "BossRobotSummonOrder": 200, "AcientTablet": 15, "StarSand": 15, "FlameBreath": 15, "FrostPotion": 15, "ThornAmulet": 15, "IronWhistle": 15}}
+----------------------------------
+Round 391：
+Request：
+官方消息和民间新闻为：
+  {
+    "officialNews": "铁矿明日起停采两天，期间收购价上涨。",
+    "folkLegends": ""
+  }
+资源：金币 0，积分 0
+基地：等级 1，血量 1500
+Response：
+工人 20010 移动至(33,11)（下发，待下轮确认）；位置(32,10) 血量220；当前背包为空
+开拓者 20011 移动至(19,12)（下发，待下轮确认）；位置(20,13) 血量200；当前背包为空
+工人 20012 建造围墙(28,10)（下发，待下轮确认）；位置(29,10) 血量220；当前背包有 3个石头、2个WallUpgradeVoucher1、1个WallUpgradeVoucher2、2个修墙包、1个StationUpgradeVoucher1
+Prompt为：
+  根据全部新闻提取约束，只返回JSON。未知内容不要猜。treasure为空或为{certain:true,pos:{x:整数,y:整数},items:[物品英文名],startRound:整数,endRound:整数,evidence:{position:坐标原文依据,items:完整物品集原文依据,time:时间原文依据}}；维护clues数组及missing、conflicts数组。未给出坐标/时间时保留线索并列为missing，禁止把年龄、水位等干扰数字当坐标。物品必须不多不少。古符石板=AcientTablet、星辰之沙=StarSand、烈焰之息=FlameBreath、寒霜药剂=FrostPotion、荆棘护符=ThornAmulet、回音铁哨=IronWhistle，最终以当场shop为准。新传闻须与之前逐条核对，否定线索覆盖猜测；不是多轮自进化任务，不需要executeCmd。closures为[{name:stone/iron/copper,startDay:整数,endDay:整数}]。priceForecasts为[{name:stone/iron/copper,startDay:整数,endDay:整数,direction:up,confidence:0到1,evidence:新闻原文依据}]；只根据明确新闻给出上涨预期。一天130回合，从1开始。仅确定且无冲突时certain=true。
+  {"news": [{"round": 390, "content": {"officialNews": "铁矿明日起停采两天，期间收购价上涨。", "folkLegends": ""}}], "previousInference": null, "lastAttempt": null, "shop": {"WeaponUpgradeVoucher1": 100, "WeaponUpgradeVoucher2": 150, "StationUpgradeVoucher1": 100, "StationUpgradeVoucher2": 150, "WallUpgradeVoucher1": 20, "WallUpgradeVoucher2": 30, "WallFixer": 10, "Medicine": 10, "DizzyWeapon": 100, "Bomb": 100, "SmallRobotSummonOrder": 20, "MiddleRobotSummonOrder": 30, "LargeRobotSummonOrder": 100, "BossRobotSummonOrder": 200, "AcientTablet": 15, "StarSand": 15, "FlameBreath": 15, "FrostPotion": 15, "ThornAmulet": 15, "IronWhistle": 15}}
+缺口重建：
+  {
+    "role": 20012,
+    "target": [
+      28,
+      10
+    ],
+    "reason": "已知防线缺口优先重建，不等待攒满石头"
+  }
+侦察/卡位：
+  {
+    "role": 20011,
+    "mode": "scout",
+    "target": [
+      14,
+      17
+    ],
+    "holding": false
+  }
+----------------------------------
+Round 465：
+Request：
+官方消息和民间新闻为：
+  {
+    "officialNews": "铁矿明日起停采两天，期间收购价上涨。",
+    "folkLegends": ""
+  }
+资源：金币 0，积分 0
+基地：等级 1，血量 1500
+Response：
+工人 10010 原地待命；位置(8,21) 血量220；当前背包为空
+开拓者 10011 移动至(19,12)（下发，待下轮确认）；位置(20,13) 血量200；当前背包为空
+工人 10012 使用WallUpgradeVoucher1(12,21)（下发，待下轮确认）；位置(11,21) 血量220；当前背包有 3个石头、2个WallUpgradeVoucher1、1个WallUpgradeVoucher2、2个修墙包、1个StationUpgradeVoucher1
+Prompt为：
+  根据全部新闻提取约束，只返回JSON。未知内容不要猜。treasure为空或为{certain:true,pos:{x:整数,y:整数},items:[物品英文名],startRound:整数,endRound:整数,evidence:{position:坐标原文依据,items:完整物品集原文依据,time:时间原文依据}}；维护clues数组及missing、conflicts数组。未给出坐标/时间时保留线索并列为missing，禁止把年龄、水位等干扰数字当坐标。物品必须不多不少。古符石板=AcientTablet、星辰之沙=StarSand、烈焰之息=FlameBreath、寒霜药剂=FrostPotion、荆棘护符=ThornAmulet、回音铁哨=IronWhistle，最终以当场shop为准。新传闻须与之前逐条核对，否定线索覆盖猜测；不是多轮自进化任务，不需要executeCmd。closures为[{name:stone/iron/copper,startDay:整数,endDay:整数}]。priceForecasts为[{name:stone/iron/copper,startDay:整数,endDay:整数,direction:up,confidence:0到1,evidence:新闻原文依据}]；只根据明确新闻给出上涨预期。一天130回合，从1开始。仅确定且无冲突时certain=true。
+  {"news": [{"round": 390, "content": {"officialNews": "铁矿明日起停采两天，期间收购价上涨。", "folkLegends": ""}}], "previousInference": null, "lastAttempt": null, "shop": {"WeaponUpgradeVoucher1": 100, "WeaponUpgradeVoucher2": 150, "StationUpgradeVoucher1": 100, "StationUpgradeVoucher2": 150, "WallUpgradeVoucher1": 20, "WallUpgradeVoucher2": 30, "WallFixer": 10, "Medicine": 10, "DizzyWeapon": 100, "Bomb": 100, "SmallRobotSummonOrder": 20, "MiddleRobotSummonOrder": 30, "LargeRobotSummonOrder": 100, "BossRobotSummonOrder": 200, "AcientTablet": 15, "StarSand": 15, "FlameBreath": 15, "FrostPotion": 15, "ThornAmulet": 15, "IronWhistle": 15}}
+升级/维修预判：
+  {
+    "role": 10012,
+    "building": 10056,
+    "item": "WallUpgradeVoucher1",
+    "hp": 450,
+    "threshold": 550.0,
+    "incomingEstimate": 7.4324324324324325,
+    "travelRounds": 0
+  }
+撤离回防：
+  {
+    "role": 10011,
+    "reason": "夜间撤离、任务恢复或己方需要回防"
+  }
+----------------------------------
+Round 391：
+Request：
+官方消息和民间新闻为：
+  {
+    "officialNews": "铁矿明日起停采两天，期间收购价上涨。",
+    "folkLegends": ""
+  }
+资源：金币 0，积分 0
+基地：等级 1，血量 1500
+Response：
+工人 10010 移动至(7,20)（下发，待下轮确认）；位置(8,21) 血量220；当前背包为空
+开拓者 10011 移动至(28,10)（下发，待下轮确认）；位置(27,10) 血量200；当前背包为空
+工人 10012 移动至(10,20)（下发，待下轮确认）；位置(11,21) 血量220；当前背包有 3个石头、2个WallUpgradeVoucher1、1个WallUpgradeVoucher2、2个修墙包、1个StationUpgradeVoucher1
+Prompt为：
+  根据全部新闻提取约束，只返回JSON。未知内容不要猜。treasure为空或为{certain:true,pos:{x:整数,y:整数},items:[物品英文名],startRound:整数,endRound:整数,evidence:{position:坐标原文依据,items:完整物品集原文依据,time:时间原文依据}}；维护clues数组及missing、conflicts数组。未给出坐标/时间时保留线索并列为missing，禁止把年龄、水位等干扰数字当坐标。物品必须不多不少。古符石板=AcientTablet、星辰之沙=StarSand、烈焰之息=FlameBreath、寒霜药剂=FrostPotion、荆棘护符=ThornAmulet、回音铁哨=IronWhistle，最终以当场shop为准。新传闻须与之前逐条核对，否定线索覆盖猜测；不是多轮自进化任务，不需要executeCmd。closures为[{name:stone/iron/copper,startDay:整数,endDay:整数}]。priceForecasts为[{name:stone/iron/copper,startDay:整数,endDay:整数,direction:up,confidence:0到1,evidence:新闻原文依据}]；只根据明确新闻给出上涨预期。一天130回合，从1开始。仅确定且无冲突时certain=true。
+  {"news": [{"round": 391, "content": {"officialNews": "铁矿明日起停采两天，期间收购价上涨。", "folkLegends": ""}}], "previousInference": null, "lastAttempt": null, "shop": {"WeaponUpgradeVoucher1": 100, "WeaponUpgradeVoucher2": 150, "StationUpgradeVoucher1": 100, "StationUpgradeVoucher2": 150, "WallUpgradeVoucher1": 20, "WallUpgradeVoucher2": 30, "WallFixer": 10, "Medicine": 10, "DizzyWeapon": 100, "Bomb": 100, "SmallRobotSummonOrder": 20, "MiddleRobotSummonOrder": 30, "LargeRobotSummonOrder": 100, "BossRobotSummonOrder": 200, "AcientTablet": 15, "StarSand": 15, "FlameBreath": 15, "FrostPotion": 15, "ThornAmulet": 15, "IronWhistle": 15}}
+侦察/卡位：
+  {
+    "role": 10011,
+    "mode": "frontBreach",
+    "target": [
+      28,
+      10
+    ],
+    "holding": false
+  }

@@ -1,9 +1,10 @@
-# 未来战争：参赛程序与本地判题器（自进化任务修复与加速版 v6）
+# 未来战争：参赛程序与本地判题器（围墙抢修与侦察卡位版 v7）
 
 目标 Python **3.11.10**，仅依赖标准库。官方 docs 和 Demo 保留原样。
-可直接使用本轮生成的 [dist/submission-v6.zip](dist/submission-v6.zip)，解压后根目录包含 `run.sh`。
+可直接使用本轮生成的 [dist/submission-v7.zip](dist/submission-v7.zip)，解压后根目录包含 `run.sh`。
 本版使用指定后方三炮位、固定工人守炮、严格区分两方机器人，以及平台标准输出日志。
-本轮 A/B 失败原因、修复与回合优化见 [docs/TASK_WORKFLOWS_V6.md](docs/TASK_WORKFLOWS_V6.md)；
+本轮围墙抢修、个人备料、侦察卡位和备用炮位见 [docs/DEFENSE_RAIDS_V7.md](docs/DEFENSE_RAIDS_V7.md)；
+A/B 失败原因、修复与回合优化见 [docs/TASK_WORKFLOWS_V6.md](docs/TASK_WORKFLOWS_V6.md)；
 中文日志和任务安全见 [docs/LOG_TASK_V5.md](docs/LOG_TASK_V5.md)；
 此前 v4 任务修复见 [docs/LOG_TASK_V4.md](docs/LOG_TASK_V4.md)；
 此前平台修复见 [docs/PLATFORM_V3.md](docs/PLATFORM_V3.md)；
@@ -39,7 +40,7 @@ python -m local_judge --seeds 1 --opponent v2 --unknown-waves growth --swap --re
 `--swap`为同种子左右各运行一次；每场最多1300轮，报告同时保存半场与双半场本地结果。
 默认 `--profile observed` 使用用户反馈的基地和前八夜波次；第九、十夜未知，
 `--unknown-waves hold8`（默认）沿用第八夜，`growth` 是人为递增压力情景，均非官方数据。
-`--opponent v5`（默认）加载 `reports/baseline-v5.zip`；`v4`、`v3`、`v2`和`previous`保留旧对手，双方使用同一环境。
+`--opponent v6`（默认）加载 `reports/baseline-v6.zip`；`v5`、`v4`、`v3`、`v2`和`previous`保留旧对手，双方使用同一环境。
 observed环境按用户最新反馈改为机器人以基地为目标，仅攻击挡路单位；具体路径选择仍是本地假设。
 1040轮只覆盖已知的前8天，不是完整比赛，不计算最终胜负。
 `--profile legacy` 保留第一版假设环境。`--pressure`也是本地压力参数。
@@ -64,7 +65,7 @@ python -m unittest discover -s tests -v
 ```
 
 测试包含独立预期的规则案例、HTTP往返、官方请求样例、错误输入，以及注入LLM/命令结果的跨轮任务闭环。
-真实Python运行版本和本版实测结果见 [reports/VALIDATION_V6.md](reports/VALIDATION_V6.md)。
+真实Python运行版本和本版实测结果见 [reports/VALIDATION_V7.md](reports/VALIDATION_V7.md)。
 第一版及开发中间报告保留作历史证据，不代表最终源码验证。
 
 ## 对局日志与地图
@@ -87,12 +88,14 @@ python -m local_judge.analyze 平台下载日志.txt --round 71 --side challenge
 简明日志不包含所有原始观测，无法完整重放旧版全部决策；优先满足人工复盘。
 样例见 [reports/v5-log-example.txt](reports/v5-log-example.txt)。
 v6 沙盒结果直接提交的样例见 [reports/v6-answer-log-example.txt](reports/v6-answer-log-example.txt)。
+v7 抢修、预测受伤与卡位动作的样例见 [reports/v7-log-example.txt](reports/v7-log-example.txt)。
 
 ## 文件职责
 
 - `agent/rules.py`：官方常量、坐标、建造区。
 - `agent/protocol.py`、`audit.py`：报文结构与执行条件分层审计、资源预留。
 - `agent/world.py`：只依据公开观测构图和寻路。
+- `agent/tactics.py`：维修工个人库存、日间缺口重建、回防、侦察与卡位调度。
 - `agent/combat.py`：弹道伤害与多炮目标选择。
 - `agent/tasks.py`：新闻记忆、任务SOP和跨回合LLM协议。
 - `agent/sandbox_tasks.py`：传送到官方沙盒执行的规范修复、接口适配、全量分页及统计；参赛进程不执行其中的文件修复/HTTP查询。

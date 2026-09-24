@@ -32,6 +32,10 @@ class Agent(AdaptiveStrategy):
         self.gunner_id = None
         self.trace = {}
         self.previous_actor_hp = {}
+        self.seen_walls = set()
+        self.seen_enemy_walls = set()
+        self.raiders = set()
+        self.boss_day = 0
 
 
     def emit(self, unit, cmd):
@@ -144,6 +148,9 @@ class Agent(AdaptiveStrategy):
             return False
         signature = json.dumps(t, sort_keys=True)
         if signature in self.memory.failed_treasures:
+            return False
+        # A distant opening window leaves the pioneer free to do tasks/scout.
+        if start - self.w.round > distance(pos(actor['pos']), target) + 8:
             return False
         bag = Counter(actor.get("backpack", []))
         missing = Counter(items) - bag

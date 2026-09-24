@@ -164,6 +164,12 @@ def render_round(payload, response, previous, events, trace):
             lines += block('未提交答案原因：', e)
         elif e.get('kind') in ('retreat', 'taskSidestep'):
             lines += block('避让说明：', e)
+        elif e.get('kind') in ('urgentRebuild', 'maintenance', 'defenseStock', 'operatorFallback',
+                                'interference', 'raidWithdraw', 'bossPressure'):
+            labels = {'urgentRebuild': '缺口重建', 'maintenance': '升级/维修预判',
+                      'defenseStock': '维修工备货', 'operatorFallback': '备用操炮位',
+                      'interference': '侦察/卡位', 'raidWithdraw': '撤离回防', 'bossPressure': 'BOSS增援'}
+            lines += block(labels[e['kind']] + '：', {k: v for k, v in e.items() if k != 'kind'})
     for e in events:
         if e['type'] == 'map':
             lines += block('地图：', e['text'])

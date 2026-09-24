@@ -1,0 +1,107 @@
+{
+  "scope": "Extracted package, real HTTP, synthetic battle fixtures; not official validation",
+  "python": "3.12.14",
+  "hashes": {
+    "main.py": "6f780f510892c430b86e4a0388da07aac36db033b1cef355dba222c8d24dd2b9",
+    "run.sh": "798def4d92f2f005c9c4884abfa7caaaccf2860d4667150c7c3ee79ca37678f8",
+    "agent/__init__.py": "8ca8ac62a27f5ff9a613c9c4bba3a569ae0fee7901a47b49190e398e1554cb1f",
+    "agent/audit.py": "257424966906d2a4da2fef6cbc29f9295a35b8989003db8a19661fa542f2184d",
+    "agent/brief_log.py": "ed84e2d17b67b5776d5a26d81bb1f865394928732f64adf85dddbe052bcb06b6",
+    "agent/combat.py": "a42127e1a8616bb535adce1e6a5ae4b168c51199c330913b1eb0e7c2709249aa",
+    "agent/human_log.py": "0d46d0bc16fc4baaaf341e8868535f1617c9befbe6a38f18763ca7b2616e9c9e",
+    "agent/intelligence.py": "88362a5af1f2e465081fb3e3566367e4506033e389b72bbc4d23fde5adb7d7b7",
+    "agent/layout.py": "8d32c0dc5fb3a6c38d6a092e68868493cbc4a4a5c272ef182f5c96d121919bcf",
+    "agent/policy.py": "9e624959fbee1485bed38ef6cec9c2930e7332fd1cea5478e0872147df5676fc",
+    "agent/protocol.py": "bdc74b8f4720f91f59c03b74341482375617d07e861aeaf360dae1fffd02847e",
+    "agent/rules.py": "3b58c69826cdcbe2994628aeb2be4f8dbe97db31894ed87609d85aa500d16115",
+    "agent/sandbox_tasks.py": "0de6a81156651782722773271484b073ecc91151eca95794040277e6f966a283",
+    "agent/server.py": "232ff309bbd3b124afc03d364b4d1897bf9c1e8b19bdb53d718078cd522dd289",
+    "agent/strategy.py": "71747b9e1f76edb8cce5630643e6d684f61c404932ad959fb8661fd67cfa60b3",
+    "agent/tactics.py": "52cccc8b9b3ebf23933d10f7d9c488b1c8c64e75dbce111f788a949f4aa3981c",
+    "agent/task_tools.py": "b4586c4ad33786b13418963d037bf469c18db4d979ae5f26c2037099b4d02b6d",
+    "agent/tasks.py": "603d05c659210983914298de5441bd1ab62ff8b2c36f0ba3ede09ec597a8856b",
+    "agent/telemetry.py": "e4514834448b0da308ac99fafeb0e992ccf8c0d179be2d5d868628b1039632a3",
+    "agent/world.py": "ff29a15962569011453b22483dfb561da11c3dee72ca8f8e2a3f1c0c32f9bc6d",
+    "local_judge/__init__.py": "87802cf73c8d954e37601b1165ae94615a255d17b74d676686c72a6efa4b95c1",
+    "local_judge/__main__.py": "f95772d6c598382f58e715c64de1db6ee237dd14d916908eb0cf74408bdfb37f",
+    "local_judge/analyze.py": "9e682d264c6694176f90879b75211254c5c6b867d4fdefbbb8a3925bad836d21",
+    "local_judge/engine.py": "6e997db37f6a59c5079e676f44ee00ac52ed81cc00d627e0f5f68e36877c8240",
+    "local_judge/profiles.py": "35cc8ed005d3a5e932a6d54cb59ef121f35644a6b7451d5f014d9c54e42fd067",
+    "tests/test_defense_raids_v7.py": "153e170b5534c9114ff574a640bec298b9af36ced58ef61a9f1a8cbfb399d300",
+    "tests/test_directional_risk.py": "06a3207a94e371d8483a0c90e05d40f3a980ae67acac43e48b2d99ea2e3f3f0f",
+    "tests/test_experience.py": "d8f7545b8818da86607ea5204a5d40510682a44371c4c08aef1ec63d310702e6",
+    "tests/test_integration.py": "230c574939c17c28b853966374a267d6629e439312595f57f7ef62c6fa8d523f",
+    "tests/test_platform.py": "64e7b3ab69ba9517f5e5dde5697b7f0a574af4364631a0624c5395aa5afb2c04",
+    "tests/test_rules.py": "75aa5e425654dd95e7de5f8bd38c20ca2b654f5b630bbbc28acc25e26c4e4649",
+    "tests/test_task_log.py": "9d0ba389e3586151375c14add409b53a68258efe59be4dcf8e7299d3ffc1af92",
+    "tests/test_task_safety_v5.py": "756cfecb15de6f44f928ece69c608450016282cbfd7fa84a46ca5b69cb5402fb",
+    "tests/test_task_workflows_v6.py": "c63859c3d66fd8237ec12a6604fc98dc00e1fda8548a6583ec59393283119a9e",
+    "docs/1.jpg": "6df2d5df2d565a2add40fa706d05714317e80a82e7eec042279e193c19fbdfd9",
+    "docs/2.jpg": "1b2e25060539fbe5797300f7773ce9a30c1264cf6e096f40acae33277facdba1",
+    "docs/3.jpg": "5d2f846f9e26bc79fe2f02b60e31e9b5db910b7a959fe088cbdb47ab5b25d1e1",
+    "docs/4.jpg": "9bb4d5e0144896eb6b2da8308c0e187fab0aaddb979d2cf054c779802022d09d",
+    "docs/任务书.md": "c548e2c66b85a71d52c60f23929b5af38caae1fc9908f8f2e5ddd0c457893d3e",
+    "docs/接口文档.md": "931a65d09f881b30644225ca8d6b1bfbc7b2bea7b4f6ce50d1f70cf858cb144d"
+  },
+  "cases": [
+    {
+      "side": "challenger",
+      "case": "dawn-rebuild",
+      "action": {
+        "action": "build",
+        "name": "wall",
+        "targetPos": [
+          {
+            "x": 12,
+            "y": 21
+          }
+        ]
+      },
+      "duplicateRequestStable": true
+    },
+    {
+      "side": "defender",
+      "case": "dawn-rebuild",
+      "action": {
+        "action": "build",
+        "name": "wall",
+        "targetPos": [
+          {
+            "x": 28,
+            "y": 10
+          }
+        ]
+      },
+      "duplicateRequestStable": true
+    },
+    {
+      "case": "night-upgrade-before-destruction",
+      "action": {
+        "action": "use",
+        "name": "WallUpgradeVoucher1",
+        "targetPos": [
+          {
+            "x": 12,
+            "y": 21
+          }
+        ]
+      }
+    },
+    {
+      "case": "daytime-front-breach",
+      "action": {
+        "action": "move",
+        "targetPos": [
+          {
+            "x": 28,
+            "y": 10
+          }
+        ]
+      }
+    }
+  ],
+  "packageSHA256": "bc1131214f0ce096039c55ef8b1b8c73f6e7b95a6110b5b18c827e9e07a006f5",
+  "newParticipantFiles": [],
+  "startupSessionCount": 1,
+  "stderr": "2026-09-24 14:12:55,637 INFO listening on 0.0.0.0:55007\n"
+}
