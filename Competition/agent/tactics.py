@@ -3,15 +3,15 @@
 Threat forecasts and deployment thresholds are strategy estimates, not robot AI rules.
 """
 from collections import Counter, deque
-import json
 
+from .recon import ReconTactics
 from .combat import defensive_robot
 from .layout import facing
 from .rules import (WEAPONS, ROBOT_STATS, build_ring, command, distance,
                     footprint, max_health, neighbours, pos)
 
 
-class FieldTactics:
+class FieldTactics(ReconTactics):
     def prepare_tactics(self):
         w = self.w
         self.day_no = (w.round - 1) // 130 + 1
@@ -53,6 +53,45 @@ class FieldTactics:
                                 'target': post, 'reason': '公共操炮位被占用或不可达，改用可达炮位'})
             return post
         return hub
+
+    def prepare_support(self):
+        self.support_gunner, self.support_post = None, None
+        w, hub = self.w, self.layout['hub']
+        if not hub or not any(u['roleType'] in ('pioneer', 'worker') and pos(u['pos']) == hub for u in w.enemies):
+            return
+        actor = w.units.get(self.wall_builder)
+        if not actor:
+            return
+        primary = {t['id'] for t in w.weapons if self.operator_hub and distance(self.operator_hub, pos(t['pos'])) <= 1}
+        choices = []
+        cells = {p for t in w.weapons for p in neighbours(pos(t['pos']))} - {self.operator_hub}
+        for cell in sorted(cells):
+            route = w.route(actor, {cell}, self.reserved | {self.operator_hub}, caution=None)
+            if route is None:
+                continue
+            covered = {t['id'] for t in w.weapons if distance(cell, pos(t['pos'])) <= 1}
+            if covered:
+                choices.append((-len(covered - primary), -len(covered), len(route), cell))
+        if choices:
+            self.support_gunner, self.support_post = actor['id'], min(choices)[-1]
+
+    def support_turn(self, actor):
+        if actor['id'] != self.support_gunner:
+            return False
+        route = self.w.route(actor, {self.support_post}, self.reserved, caution=None)
+        if self.w.day and self.w.left > (len(route) if route is not None else 30) + 8:
+            return False
+        # Emergency base healing can take a cooldown turn; ordinary shopping and
+        # wall patrol cannot pull the recalled operator away from the guns.
+        if self.w.base and self.w.base['health'] < .35 * max_health('station', self.w.base.get('level', 1)):
+            if self.use_upgrade(actor, defense_only=True):
+                return True
+        self.events.append({'kind': 'supportGunner', 'role': actor['id'], 'target': self.support_post,
+                            'reason': '公共炮位被敌方占据，召回第二工人分担未封堵武器'})
+        if route:
+            return self.emit(actor, command('move', [route[0]]))
+        self.heal(actor)
+        return True
 
     def guard_operator(self, actor):
         if actor['id'] != self.gunner or not self.w.day or not self.layout['hub']:
@@ -241,11 +280,11 @@ class FieldTactics:
         edge = (max if facing(base) > 0 else min)(p[0] for p in ring)
         return {p for p in ring if p[0] == edge}
 
-    def two_exit_ring(self, enemy_walls):
+    def enclosure_exits(self, enemy_walls):
         """Require an actual 8-neighbour cut; two visually apparent gaps aren't enough."""
         ring = build_ring(self.enemy_base, 2)
         gaps = ring - enemy_walls
-        if len(gaps) != 2:
+        if len(gaps) not in (1, 2):
             return set()
         inner = build_ring(self.enemy_base, 1)
         outer = build_ring(self.enemy_base, 3)
@@ -264,98 +303,6 @@ class FieldTactics:
                         queue.append(nxt)
             return False
         return gaps if reachable(enemy_walls) and not reachable(enemy_walls | gaps) else set()
-
-    def plan_interference(self, enemy_walls):
-        w = self.w
-        pioneer = next((a for a in w.actors if a['roleType'] == 'pioneer'), None)
-        if not pioneer or w.phase or not self.enemy_base:
-            return
-        # Cooldown is temporary. A newly valid own task immediately cancels a raid.
-        if any(t.get('isValid') and w.zones.get(pos(t['taskPosition']), '').startswith(w.side) for t in w.tasks):
-            return
-        treasure = self.memory.treasure
-        if isinstance(treasure, dict) and not self.memory.treasure_done:
-            start, end = treasure.get('startRound'), treasure.get('endRound')
-            if (type(start) is int and type(end) is int and w.round <= end
-                    and json.dumps(treasure, sort_keys=True) not in self.memory.failed_treasures):
-                try:
-                    near_window = start - w.round <= distance(pos(pioneer['pos']), pos(treasure['pos'])) + 8
-                except (KeyError, TypeError):
-                    near_window = False
-                if near_window:
-                    return  # Do not fund a raid that treasure() will cancel this turn.
-        if not w.day or w.left <= 2 or pioneer['health'] < 100:
-            return
-        face = self.front_face(self.enemy_base)
-        # A missing segment must have been observed before, or be flanked by
-        # actual walls. Never call an unbuilt empty map a destroyed enclosure.
-        holes = {p for p in face - enemy_walls if p in self.seen_enemy_walls or
-                 ((p[0], p[1] - 1) in enemy_walls and (p[0], p[1] + 1) in enemy_walls)}
-        worker = w.units.get(self.wall_builder)
-        pair = self.two_exit_ring(enemy_walls)
-        if pair and worker and self.home_secure():
-            bag = Counter(worker.get('backpack', []))
-            equipped = self.day_no < 4 or (bag['stone'] >= 3 and all(bag[n] >= min(1, count) for n, count in self.defense_stock(worker)))
-            if equipped:
-                assignments = []
-                for first in sorted(pair):
-                    second = next(p for p in pair if p != first)
-                    a = w.route(pioneer, {first}, self.reserved)
-                    b = w.route(worker, {second}, self.reserved)
-                    proxy = dict(worker, pos={'x': second[0], 'y': second[1]})
-                    home = w.route(proxy, self.maintenance_posts(), self.reserved)
-                    if a is not None and b is not None and home is not None and max(len(a), len(b)) + len(home) + 10 < w.left:
-                        assignments.append((len(a) + len(b), first, second))
-                if assignments:
-                    _, first, second = min(assignments)
-                    self.raid_assignments = {pioneer['id']: first, worker['id']: second}
-                    self.raid_kind = 'twoExits'
-        if not self.raid_assignments:
-            visible_guns = [u for u in w.enemies if u['roleType'] in WEAPONS]
-            shared = set.intersection(*(set(neighbours(pos(t['pos']))) for t in visible_guns)) if len(visible_guns) >= 3 else set()
-            for kind, cells in (('frontBreach', holes), ('operatorBlock', shared)):
-                candidates = []
-                for cell in sorted(cells):
-                    route = w.route(pioneer, {cell}, self.reserved)
-                    if route is not None and len(route) + 4 < w.left:
-                        candidates.append((len(route), cell))
-                if candidates:
-                    self.raid_assignments[pioneer['id']] = min(candidates)[1]
-                    self.raid_kind = kind
-                    break
-        actual = self.raid_assignments.get(pioneer['id'])
-        self.blocking_breach = actual in holes and pos(pioneer['pos']) == actual
-        if not self.raid_assignments:
-            # Observe the opponent from a reachable point within our normal sight.
-            scout = build_ring(self.enemy_base, 3) | build_ring(self.enemy_base, 4)
-            route = w.route(pioneer, scout, self.reserved)
-            if route is not None and len(route) + 6 < w.left:
-                self.raid_assignments[pioneer['id']] = route[-1] if route else pos(pioneer['pos'])
-                self.raid_kind = 'scout'
-
-    def interference(self, actor):
-        target = self.raid_assignments.get(actor['id'])
-        if target is not None:
-            path = self.w.route(actor, {target}, self.reserved)
-            if path is None:
-                return False
-            self.raiders.add(actor['id'])
-            self.events.append({'kind': 'interference', 'role': actor['id'], 'mode': self.raid_kind,
-                                'target': target, 'holding': not path})
-            return self.emit(actor, command('move', [path[0]])) if path else True
-        if actor['id'] not in self.raiders:
-            return False
-        # Withdraw before dusk, on a task refresh, or when the home defense needs
-        # its worker. Task actions have priority and can take over this return.
-        posts = self.maintenance_posts() if actor['roleType'] == 'worker' else (
-            build_ring(self.w.base, 1) - set(self.layout['guns']) - {self.layout['hub']} if self.w.base else set())
-        path = self.w.route(actor, posts, self.reserved)
-        if path:
-            self.events.append({'kind': 'raidWithdraw', 'role': actor['id'], 'reason': '夜间撤离、任务恢复或己方需要回防'})
-            return self.emit(actor, command('move', [path[0]]))
-        if path == []:
-            self.raiders.discard(actor['id'])
-        return False
 
     def boss_pressure(self, actor):
         w = self.w

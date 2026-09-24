@@ -57,12 +57,13 @@ class AdaptiveStrategy(FieldTactics):
         self.gunner = self.select_gunner(hub)
         self.wall_builder = self.select_builder()
         self.w.gunner_id = self.gunner
-        self.prepare_tactics()
         hub = self.operator_hub = self.operator_post()
         self.w.protected_hub = hub
+        self.prepare_support()
+        self.prepare_tactics()
         if not w.day:
             self.fight(deadline)
-        ordered = sorted(w.actors, key=lambda a: (a["id"] != self.gunner, a['id'] != self.wall_builder, a["id"]))
+        ordered = sorted(w.actors, key=lambda a: (a["id"] != self.gunner, a['roleType'] != 'pioneer', a["id"]))
         for actor in ordered:
             uid = actor["id"]
             if uid in self.ledger.used:
@@ -83,7 +84,12 @@ class AdaptiveStrategy(FieldTactics):
                     self.heal(actor)
                 self.solve_task(actor, model_reply)
                 continue
+            if actor['roleType'] == 'pioneer':
+                self.pioneer_turn(actor)
+                continue
             if self.guard_operator(actor) or self.emergency_rebuild(actor):
+                continue
+            if self.support_turn(actor):
                 continue
             if self.day_no < 4 and self.breaches and self.reserve_stone(actor):
                 continue
@@ -121,17 +127,6 @@ class AdaptiveStrategy(FieldTactics):
                         continue
                 if self.economy(actor):
                     continue
-            else:
-                if w.phase:
-                    self.solve_task(actor, model_reply)
-                    continue
-                if self.treasure(actor) or self.accept_task(actor):
-                    self.raiders.discard(uid)
-                    continue
-                if self.interference(actor):
-                    continue
-                if self.procure(actor):
-                    continue
             # Keep spare units off the hub and out of the rear passage.
             if w.base:
                 rear = {p for p in neighbours(pos(w.base["pos"])) if p not in self.layout["guns"] and p != hub}
@@ -142,9 +137,10 @@ class AdaptiveStrategy(FieldTactics):
             self.response["prompt"] = self.memory.news_prompt(w)
         if schema_errors(self.response):
             raise ValueError("internal response schema failure")
-        self.trace = {"strategy": "platform-v7", "elapsedMs": (time.perf_counter() - started) * 1000,
+        self.trace = {"strategy": "platform-v8", "elapsedMs": (time.perf_counter() - started) * 1000,
                       "layout": deepcopy(self.layout), "gunner": self.gunner, "wallBuilder": self.wall_builder,
                       'operatorPost': hub, 'breaches': sorted(self.breaches),
+                      'supportGunner': self.support_gunner, 'supportPost': self.support_post,
                       'raidAssignments': deepcopy(self.raid_assignments), 'blockingBreach': self.blocking_breach,
                       "wallStockTarget": self.stone_target(),
                       "defensiveRobots": [r["id"] for r in w.robots if defensive_robot(r, w.base, w.side)],
@@ -203,12 +199,18 @@ class AdaptiveStrategy(FieldTactics):
         return False
 
     def fight(self, deadline):
-        w, allocated = self.w, {}
-        gunner = w.units.get(self.gunner)
+        allocated = {}
+        for uid in (self.gunner, self.support_gunner):
+            if uid is not None:
+                self.fire_controller(uid, deadline, allocated)
+
+    def fire_controller(self, controller, deadline, allocated):
+        w = self.w
+        gunner = w.units.get(controller)
         if not gunner:
             self.events.append({"kind": "noGunner", "reason": "no living worker"})
             return
-        ready = [t for t in w.weapons if t.get("cooldown", 0) == 0
+        ready = [t for t in w.weapons if t.get("cooldown", 0) == 0 and t['id'] not in self.ledger.used
                  and distance(pos(gunner["pos"]), pos(t["pos"])) <= 1]
         choices = []
         for tower in ready:
@@ -224,10 +226,11 @@ class AdaptiveStrategy(FieldTactics):
                 if self.emit(tower, command("attack", targets, controllerId=str(gunner["id"]))):
                     self.events.append({"kind": "volley", "tower": tower["id"], "controller": gunner["id"],
                                         "targets": targets, **metrics})
-                    allocated.update(damage(tower, targets, w.robots))
+                    for rid, dealt in damage(tower, targets, w.robots).items():
+                        allocated[rid] = allocated.get(rid, 0) + dealt
                     break
-        if not any(c["action"] == "attack" for c in self.response["roleCommandMap"].values()):
-            self.events.append({"kind": "gunnerIdle", "role": self.gunner,
+        if controller not in self.ledger.used:
+            self.events.append({"kind": "gunnerIdle", "role": controller,
                                 "reason": "no reachable ready weapon" if not ready else "no permitted target",
                                 "cooldowns": {t["id"]: t.get("cooldown", 0) for t in w.weapons}})
 
@@ -422,6 +425,11 @@ class AdaptiveStrategy(FieldTactics):
                 continue
             mineral = w.zones[mine]
             price = w.vendor.get(mineral, 0)
+            if any(f.get('name') == mineral and f.get('direction') == 'up'
+                   and type(f.get('startDay')) is int and day < f['startDay'] <= day + 2
+                   and isinstance(f.get('confidence'), (int, float)) and f['confidence'] >= .8
+                   for f in self.memory.price_forecasts if isinstance(f, dict)):
+                price *= 1.5  # Planning preference only; actual sale uses vendorShopList.
             if mineral == "stone" and stone_needed:
                 price += 15
             travel = min((distance(mine, v) for v in vendors), default=30)

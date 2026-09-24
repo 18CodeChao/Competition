@@ -3,10 +3,11 @@ from collections import Counter
 import json
 
 from .audit import eligible
-from .rules import WEAPONS, pos, distance, footprint, command, max_health, inside
+from .rules import WEAPONS, pos, distance, footprint, command, max_health
 from .tasks import TaskMemory, structured_answer, usable_answer
 from .strategy import AdaptiveStrategy
 from .intelligence import Intelligence
+from .news import valid_treasure
 
 
 class Agent(AdaptiveStrategy):
@@ -36,6 +37,8 @@ class Agent(AdaptiveStrategy):
         self.seen_enemy_walls = set()
         self.raiders = set()
         self.boss_day = 0
+        self.scout_done = False
+        self.scouted_cells = set()
 
 
     def emit(self, unit, cmd):
@@ -133,40 +136,50 @@ class Agent(AdaptiveStrategy):
         else:
             self.response["prompt"] = self.memory.task_prompt(self.w)
 
-    def treasure(self, actor):
+    def treasure_trip(self, actor):
         t = self.memory.treasure
-        if not t or self.memory.treasure_done:
-            return False
-        try:
-            target, items = pos(t["pos"]), t["items"]
-            start, end = t["startRound"], t["endRound"]
-            valid = (all(type(v) is int for v in (*target, start, end)) and inside(target)
-                     and isinstance(items, list) and all(isinstance(i, str) for i in items))
-        except (KeyError, TypeError):
-            return False
-        if not valid or self.w.round > end:
-            return False
+        if not t or self.memory.treasure_done or not valid_treasure(t, self.w.shop):
+            return None
         signature = json.dumps(t, sort_keys=True)
         if signature in self.memory.failed_treasures:
-            return False
-        # A distant opening window leaves the pioneer free to do tasks/scout.
-        if start - self.w.round > distance(pos(actor['pos']), target) + 8:
-            return False
+            return None
+        target, items = pos(t['pos']), t['items']
         bag = Counter(actor.get("backpack", []))
         missing = Counter(items) - bag
+        if (sum(self.w.shop[i] * n for i, n in missing.items()) > self.ledger.gold
+                or len(actor.get('backpack', [])) + sum(missing.values()) > actor.get('backPackCapability', 40)):
+            return None
+        shops = {c for c, k in self.w.zones.items() if k == 'weaponShop'}
+        shopping = self.w.adjacent_route(actor, shops, self.reserved) if missing else []
+        if shopping is None:
+            return None
+        endpoint = shopping[-1] if shopping else pos(actor['pos'])
+        proxy = dict(actor, pos={'x': endpoint[0], 'y': endpoint[1]})
+        destination = self.w.adjacent_route(proxy, {target}, self.reserved)
+        if destination is None:
+            return None
+        rounds = len(shopping) + len(missing) + len(destination) + 1
+        if self.w.round + rounds - 1 > t['endRound'] or t['startRound'] - self.w.round > rounds + 8:
+            return None
+        return t, missing, shopping, destination, rounds
+
+    def treasure(self, actor):
+        trip = self.treasure_trip(actor)
+        if trip is None:
+            return False
+        t, missing, shopping, destination, rounds = trip
+        target, start, end = pos(t['pos']), t['startRound'], t['endRound']
+        self.events.append({'kind': 'treasureJourney', 'role': actor['id'], 'target': target,
+                            'startRound': start, 'endRound': end, 'estimatedRounds': rounds,
+                            'missingItems': dict(missing)})
         if missing:
             item, num = next(iter(missing.items()))
-            if item not in self.w.shop or self.w.shop[item] * num > self.ledger.gold:
-                return False
-            shops = {c for c, k in self.w.zones.items() if k == "weaponShop"}
-            if any(distance(pos(actor["pos"]), c) == 1 for c in shops):
-                return self.emit(actor, command("buy", name=item, num=num))
-            return self.walk(actor, shops)
+            return self.emit(actor, command('move', [shopping[0]]) if shopping else command('buy', name=item, num=num))
         if distance(pos(actor["pos"]), target) <= 1:
             if start <= self.w.round <= end:
-                success = self.emit(actor, command("summonTreasure", [target], item=items))
+                success = self.emit(actor, command("summonTreasure", [target], item=t['items']))
                 if success:
-                    self.memory.treasure_pending = (self.w.round, signature)
+                    self.memory.treasure_pending = (self.w.round, json.dumps(t, sort_keys=True))
                 return success
             return True
-        return self.walk(actor, {target})
+        return self.emit(actor, command('move', [destination[0]])) if destination else True

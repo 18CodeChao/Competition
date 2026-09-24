@@ -205,6 +205,7 @@ class WorkflowV6Tests(unittest.TestCase):
 
     def test_task_point_flow_submits_token_on_first_result_round(self):
         g = Game(pressure=0); g.unit(10011)['pos'] = xy((13, 14))
+        g.round = 36  # v8 first-day scouting has finished; test the same task pipeline.
         g.task_specs['challenger'][0][0]['description'] = '请阅读task_fixture.md'
         a = Agent()
         accept = a.decide(g.observation('challenger'))

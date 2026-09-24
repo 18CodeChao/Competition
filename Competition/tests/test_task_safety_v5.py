@@ -20,7 +20,8 @@ class TaskSafetyV5Tests(unittest.TestCase):
 
     def test_night_gate_both_sides_and_second_day(self):
         for side, uid, cell in [('challenger', 10011, (13, 14)), ('defender', 20011, (24, 14))]:
-            for r, allowed in ((1, True), (60, False), (70, False), (71, False), (80, False),
+            # v8: first-day opening is reserved for the user's scouting request.
+            for r, allowed in ((1, False), (36, True), (60, False), (70, False), (71, False), (80, False),
                                (81, True), (201, False), (210, False), (211, True)):
                 with self.subTest(side=side, round=r):
                     g = Game(pressure=0); g.round = r; g.unit(uid)['pos'] = xy(cell)

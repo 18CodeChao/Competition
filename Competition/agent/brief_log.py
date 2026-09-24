@@ -19,7 +19,7 @@ class EventJournal:
         for p in sorted(Path(__file__).parent.glob('*.py')):
             digest.update(p.name.encode())
             digest.update(p.read_bytes())
-        self.emit({'type': 'start', 'session': uuid.uuid4().hex[:12], 'version': 'v7', 'code': digest.hexdigest()[:12]})
+        self.emit({'type': 'start', 'session': uuid.uuid4().hex[:12], 'version': 'v8', 'code': digest.hexdigest()[:12]})
 
     def emit(self, record):
         text = json.dumps(record, ensure_ascii=False, separators=(',', ':'), allow_nan=False)
